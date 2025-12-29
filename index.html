@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام جرد وحصر الأصول الحكومية</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts - Arabic -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- QuaggaJS for Barcode Scanning -->
+    <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
+    
+    <!-- SheetJS for Excel Export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <!-- JsBarcode for Barcode Generation -->
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'arabic': ['Tajawal', 'sans-serif'],
+                    },
+                    colors: {
+                        'gov-blue': '#1e40af',
+                        'gov-blue-light': '#3b82f6',
+                        'gov-green': '#059669',
+                        'gov-gold': '#d97706',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="font-arabic bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 min-h-screen">
+    
+    <!-- Sidebar Navigation -->
+    <aside id="sidebar" class="fixed right-0 top-0 h-full w-72 bg-gradient-to-b from-gov-blue to-indigo-900 text-white z-40 transform transition-transform duration-300 lg:translate-x-0 translate-x-full">
+        <div class="p-6 border-b border-white/20">
+            <div class="flex items-center gap-4">
+                <div class="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
+                    <i class="fas fa-building-columns text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold">جرد الأصول</h1>
+                    <p class="text-blue-200 text-sm">الحكومية</p>
+                </div>
+            </div>
+        </div>
+        
+        <nav class="p-4 space-y-2">
+            <a href="#" onclick="showPage('dashboard')" class="nav-link active flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 hover:bg-white/10">
+                <i class="fas fa-chart-pie w-6"></i>
+                <span>لوحة التحكم</span>
+            </a>
+            <a href="#" onclick="showPage('assets')" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 hover:bg-white/10">
+                <i class="fas fa-boxes-stacked w-6"></i>
+                <span>إدارة الأصول</span>
+            </a>
+            <a href="#" onclick="showPage('inventory')" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 hover:bg-white/10">
+                <i class="fas fa-clipboard-check w-6"></i>
+                <span>عمليات الجرد</span>
+            </a>
+            <a href="#" onclick="showPage('departments')" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 hover:bg-white/10">
+                <i class="fas fa-sitemap w-6"></i>
+                <span>الإدارات والأقسام</span>
+            </a>
+            <a href="#" onclick="showPage('reports')" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 hover:bg-white/10">
+                <i class="fas fa-file-chart-column w-6"></i>
+                <span>التقارير</span>
+            </a>
+            <a href="#" onclick="showPage('maintenance')" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 hover:bg-white/10">
+                <i class="fas fa-wrench w-6"></i>
+                <span>الصيانة</span>
+            </a>
+            <a href="#" onclick="showPage('settings')" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 hover:bg-white/10">
+                <i class="fas fa-cog w-6"></i>
+                <span>الإعدادات</span>
+            </a>
+        </nav>
+        
+        <div class="absolute bottom-0 right-0 left-0 p-4 border-t border-white/20">
+            <div class="bg-white/10 rounded-xl p-4">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="w-10 h-10 bg-gov-gold rounded-full flex items-center justify-center">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-sm">مدير النظام</p>
+                        <p class="text-blue-200 text-xs">admin@gov.sa</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </aside>
+    
+    <!-- Mobile Menu Toggle -->
+    <button id="menuToggle" class="lg:hidden fixed top-4 right-4 z-50 bg-gov-blue text-white p-3 rounded-xl shadow-lg">
+        <i class="fas fa-bars text-xl"></i>
+    </button>
+    
+    <!-- Main Content -->
+    <main class="lg:mr-72 min-h-screen">
+        <!-- Top Header -->
+        <header class="bg-white shadow-sm sticky top-0 z-30">
+            <div class="flex items-center justify-between px-6 py-4">
+                <div class="flex items-center gap-4">
+                    <h2 id="pageTitle" class="text-xl font-bold text-gray-800">لوحة التحكم</h2>
+                    <span class="text-sm text-gray-500" id="currentDate"></span>
+                </div>
+                <div class="flex items-center gap-4">
+                    <!-- Search Bar -->
+                    <div class="relative hidden md:block">
+                        <input type="text" id="globalSearch" placeholder="بحث سريع..." 
+                               class="w-64 pr-10 pl-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gov-blue-light focus:border-transparent">
+                        <i class="fas fa-search absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    </div>
+                    
+                    <!-- Notifications -->
+                    <button class="relative p-2 text-gray-600 hover:bg-gray-100 rounded-xl transition-colors">
+                        <i class="fas fa-bell text-xl"></i>
+                        <span class="absolute -top-1 -left-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">3</span>
+                    </button>
+                    
+                    <!-- Quick Add -->
+                    <button onclick="openAssetModal()" class="bg-gov-blue text-white px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-gov-blue-light transition-colors">
+                        <i class="fas fa-plus"></i>
+                        <span class="hidden sm:inline">إضافة أصل</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Dashboard Page -->
+        <div id="page-dashboard" class="page-content p-6">
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="stats-card bg-white rounded-2xl shadow-lg p-6 border-r-4 border-gov-blue">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600 text-sm mb-1">إجمالي الأصول</p>
+                            <p class="text-3xl font-bold text-gray-800" id="totalAssets">0</p>
+                            <p class="text-xs text-green-600 mt-1"><i class="fas fa-arrow-up"></i> +12% هذا الشهر</p>
+                        </div>
+                        <div class="bg-blue-100 p-4 rounded-xl">
+                            <i class="fas fa-boxes-stacked text-2xl text-gov-blue"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="stats-card bg-white rounded-2xl shadow-lg p-6 border-r-4 border-gov-green">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600 text-sm mb-1">القيمة الإجمالية</p>
+                            <p class="text-3xl font-bold text-gray-800" id="totalValue">0</p>
+                            <p class="text-xs text-gray-500 mt-1">ريال سعودي</p>
+                        </div>
+                        <div class="bg-green-100 p-4 rounded-xl">
+                            <i class="fas fa-coins text-2xl text-gov-green"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="stats-card bg-white rounded-2xl shadow-lg p-6 border-r-4 border-purple-500">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600 text-sm mb-1">تحتاج صيانة</p>
+                            <p class="text-3xl font-bold text-gray-800" id="needMaintenance">0</p>
+                            <p class="text-xs text-orange-600 mt-1"><i class="fas fa-exclamation-triangle"></i> تحتاج متابعة</p>
+                        </div>
+                        <div class="bg-purple-100 p-4 rounded-xl">
+                            <i class="fas fa-wrench text-2xl text-purple-600"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="stats-card bg-white rounded-2xl shadow-lg p-6 border-r-4 border-gov-gold">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600 text-sm mb-1">الإدارات</p>
+                            <p class="text-3xl font-bold text-gray-800" id="totalDepartments">0</p>
+                            <p class="text-xs text-blue-600 mt-1"><i class="fas fa-building"></i> قسم مسجل</p>
+                        </div>
+                        <div class="bg-amber-100 p-4 rounded-xl">
+                            <i class="fas fa-sitemap text-2xl text-gov-gold"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Charts Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <div class="bg-white rounded-2xl shadow-lg p-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">توزيع الأصول حسب الفئة</h3>
+                    <div style="height: 300px;">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-2xl shadow-lg p-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">حالة الأصول</h3>
+                    <div style="height: 300px;">
+                        <canvas id="conditionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recent Assets & Alerts -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 bg-white rounded-2xl shadow-lg p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-bold text-gray-800">أحدث الأصول المضافة</h3>
+                        <a href="#" onclick="showPage('assets')" class="text-gov-blue text-sm hover:underline">عرض الكل</a>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="border-b border-gray-200">
+                                    <th class="text-right py-3 px-4 text-sm font-semibold text-gray-600">الكود</th>
+                                    <th class="text-right py-3 px-4 text-sm font-semibold text-gray-600">الاسم</th>
+                                    <th class="text-right py-3 px-4 text-sm font-semibold text-gray-600">الفئة</th>
+                                    <th class="text-right py-3 px-4 text-sm font-semibold text-gray-600">الحالة</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentAssetsTable">
+                                <!-- Filled by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-2xl shadow-lg p-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">تنبيهات هامة</h3>
+                    <div class="space-y-4" id="alertsList">
+                        <!-- Filled by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Assets Page -->
+        <div id="page-assets" class="page-content p-6 hidden">
+            <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                <div class="flex flex-wrap items-center gap-4 mb-6">
+                    <div class="flex-1 min-w-64">
+                        <div class="relative">
+                            <input type="text" id="assetSearch" placeholder="البحث عن أصل (الاسم، الكود، القسم...)"
+                                   class="w-full pr-10 pl-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                            <i class="fas fa-search absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        </div>
+                    </div>
+                    <select id="categoryFilter" class="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                        <option value="">جميع الفئات</option>
+                    </select>
+                    <select id="conditionFilter" class="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                        <option value="">جميع الحالات</option>
+                    </select>
+                    <select id="departmentFilter" class="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                        <option value="">جميع الإدارات</option>
+                    </select>
+                    <button onclick="exportToExcel()" class="bg-gov-green text-white px-5 py-3 rounded-xl flex items-center gap-2 hover:bg-green-700 transition-colors">
+                        <i class="fas fa-file-excel"></i>
+                        <span>تصدير Excel</span>
+                    </button>
+                    <button onclick="exportToPDF()" class="bg-red-600 text-white px-5 py-3 rounded-xl flex items-center gap-2 hover:bg-red-700 transition-colors">
+                        <i class="fas fa-file-pdf"></i>
+                        <span>تصدير PDF</span>
+                    </button>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full" id="assetsTable">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="text-right py-4 px-4 text-sm font-semibold text-gray-700 rounded-r-xl">
+                                    <input type="checkbox" id="selectAll" class="w-4 h-4 rounded">
+                                </th>
+                                <th class="text-right py-4 px-4 text-sm font-semibold text-gray-700">الكود</th>
+                                <th class="text-right py-4 px-4 text-sm font-semibold text-gray-700">اسم الأصل</th>
+                                <th class="text-right py-4 px-4 text-sm font-semibold text-gray-700">الفئة</th>
+                                <th class="text-right py-4 px-4 text-sm font-semibold text-gray-700">القسم</th>
+                                <th class="text-right py-4 px-4 text-sm font-semibold text-gray-700">الموقع</th>
+                                <th class="text-right py-4 px-4 text-sm font-semibold text-gray-700">القيمة الحالية</th>
+                                <th class="text-right py-4 px-4 text-sm font-semibold text-gray-700">الحالة</th>
+                                <th class="text-center py-4 px-4 text-sm font-semibold text-gray-700 rounded-l-xl">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="assetsTableBody">
+                            <!-- Filled by JS -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                <div class="flex items-center justify-between mt-6">
+                    <p class="text-sm text-gray-600">عرض <span id="showingFrom">0</span> - <span id="showingTo">0</span> من <span id="totalRecords">0</span> أصل</p>
+                    <div class="flex items-center gap-2" id="pagination">
+                        <!-- Filled by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Inventory Page -->
+        <div id="page-inventory" class="page-content p-6 hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                <div class="bg-white rounded-2xl shadow-lg p-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">بدء عملية جرد جديدة</h3>
+                    <form id="inventoryForm" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">اسم عملية الجرد</label>
+                            <input type="text" id="inventoryName" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">الإدارة/القسم</label>
+                            <select id="inventoryDepartment" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                                <option value="">جميع الإدارات</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">تاريخ الجرد</label>
+                            <input type="date" id="inventoryDate" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light" required>
+                        </div>
+                        <button type="submit" class="w-full bg-gov-blue text-white py-3 rounded-xl font-semibold hover:bg-gov-blue-light transition-colors">
+                            <i class="fas fa-clipboard-check ml-2"></i>
+                            بدء الجرد
+                        </button>
+                    </form>
+                </div>
+                
+                <div class="lg:col-span-2 bg-white rounded-2xl shadow-lg p-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">مسح الباركود</h3>
+                    <div id="barcodeScannerContainer" class="relative bg-gray-100 rounded-xl overflow-hidden mb-4" style="height: 300px;">
+                        <div id="scanner-placeholder" class="absolute inset-0 flex flex-col items-center justify-center">
+                            <i class="fas fa-barcode text-6xl text-gray-400 mb-4"></i>
+                            <p class="text-gray-600">انقر لبدء المسح</p>
+                        </div>
+                        <video id="barcodeVideo" class="w-full h-full object-cover hidden"></video>
+                        <canvas id="barcodeCanvas" class="hidden"></canvas>
+                    </div>
+                    <div class="flex gap-4">
+                        <button onclick="startBarcodeScanner()" id="startScanBtn" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-semibold hover:bg-indigo-700 transition-colors">
+                            <i class="fas fa-camera ml-2"></i>
+                            بدء المسح
+                        </button>
+                        <button onclick="stopBarcodeScanner()" id="stopScanBtn" class="flex-1 bg-red-600 text-white py-3 rounded-xl font-semibold hover:bg-red-700 transition-colors hidden">
+                            <i class="fas fa-stop ml-2"></i>
+                            إيقاف المسح
+                        </button>
+                        <button onclick="manualCodeEntry()" class="flex-1 bg-gray-600 text-white py-3 rounded-xl font-semibold hover:bg-gray-700 transition-colors">
+                            <i class="fas fa-keyboard ml-2"></i>
+                            إدخال يدوي
+                        </button>
+                    </div>
+                    <div id="scannedResult" class="mt-4 p-4 bg-green-50 border border-green-200 rounded-xl hidden">
+                        <p class="text-green-700 font-semibold"><i class="fas fa-check-circle ml-2"></i>تم مسح الأصل بنجاح</p>
+                        <p class="text-gray-600 mt-1" id="scannedAssetInfo"></p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-2xl shadow-lg p-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">سجل عمليات الجرد</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="text-right py-4 px-4 text-sm font-semibold text-gray-700">رقم العملية</th>
+                                <th class="text-right py-4 px-4 text-sm font-semibold text-gray-700">اسم الجرد</th>
+                                <th class="text-right py-4 px-4 text-sm font-semibold text-gray-700">الإدارة</th>
+                                <th class="text-right py-4 px-4 text-sm font-semibold text-gray-700">التاريخ</th>
+                                <th class="text-right py-4 px-4 text-sm font-semibold text-gray-700">عدد الأصول</th>
+                                <th class="text-right py-4 px-4 text-sm font-semibold text-gray-700">الحالة</th>
+                                <th class="text-center py-4 px-4 text-sm font-semibold text-gray-700">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventoryLogTable">
+                            <!-- Filled by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Departments Page -->
+        <div id="page-departments" class="page-content p-6 hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-gray-800">إدارة الإدارات والأقسام</h3>
+                <button onclick="openDepartmentModal()" class="bg-gov-blue text-white px-5 py-3 rounded-xl flex items-center gap-2 hover:bg-gov-blue-light transition-colors">
+                    <i class="fas fa-plus"></i>
+                    إضافة إدارة
+                </button>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="departmentsGrid">
+                <!-- Filled by JS -->
+            </div>
+        </div>
+        
+        <!-- Reports Page -->
+        <div id="page-reports" class="page-content p-6 hidden">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <button onclick="generateReport('summary')" class="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all border-2 border-transparent hover:border-gov-blue group">
+                    <div class="bg-blue-100 w-16 h-16 rounded-xl flex items-center justify-center mb-4 group-hover:bg-gov-blue group-hover:text-white transition-colors">
+                        <i class="fas fa-chart-bar text-2xl text-gov-blue group-hover:text-white"></i>
+                    </div>
+                    <h4 class="font-bold text-gray-800 mb-2">تقرير ملخص</h4>
+                    <p class="text-sm text-gray-600">نظرة عامة على جميع الأصول</p>
+                </button>
+                
+                <button onclick="generateReport('depreciation')" class="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all border-2 border-transparent hover:border-gov-green group">
+                    <div class="bg-green-100 w-16 h-16 rounded-xl flex items-center justify-center mb-4 group-hover:bg-gov-green group-hover:text-white transition-colors">
+                        <i class="fas fa-chart-line text-2xl text-gov-green group-hover:text-white"></i>
+                    </div>
+                    <h4 class="font-bold text-gray-800 mb-2">تقرير الإهلاك</h4>
+                    <p class="text-sm text-gray-600">إهلاك الأصول والقيم</p>
+                </button>
+                
+                <button onclick="generateReport('maintenance')" class="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all border-2 border-transparent hover:border-orange-500 group">
+                    <div class="bg-orange-100 w-16 h-16 rounded-xl flex items-center justify-center mb-4 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                        <i class="fas fa-tools text-2xl text-orange-500 group-hover:text-white"></i>
+                    </div>
+                    <h4 class="font-bold text-gray-800 mb-2">تقرير الصيانة</h4>
+                    <p class="text-sm text-gray-600">أصول تحتاج صيانة</p>
+                </button>
+                
+                <button onclick="generateReport('inventory')" class="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all border-2 border-transparent hover:border-purple-500 group">
+                    <div class="bg-purple-100 w-16 h-16 rounded-xl flex items-center justify-center mb-4 group-hover:bg-purple-500 group-hover:text-white transition-colors">
+                        <i class="fas fa-clipboard-list text-2xl text-purple-500 group-hover:text-white"></i>
+                    </div>
+                    <h4 class="font-bold text-gray-800 mb-2">تقرير الجرد</h4>
+                    <p class="text-sm text-gray-600">نتائج عمليات الجرد</p>
+                </button>
+            </div>
+            
+            <div class="bg-white rounded-2xl shadow-lg p-6" id="reportContainer">
+                <div class="text-center py-12 text-gray-500">
+                    <i class="fas fa-file-chart-line text-6xl mb-4 opacity-50"></i>
+                    <p class="text-lg">اختر نوع التقرير من الأعلى لعرضه</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Maintenance Page -->
+        <div id="page-maintenance" class="page-content p-6 hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-gray-800">إدارة الصيانة</h3>
+                <button onclick="openMaintenanceModal()" class="bg-gov-blue text-white px-5 py-3 rounded-xl flex items-center gap-2 hover:bg-gov-blue-light transition-colors">
+                    <i class="fas fa-plus"></i>
+                    طلب صيانة جديد
+                </button>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="bg-white rounded-2xl shadow-lg p-6 border-r-4 border-yellow-500">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600 text-sm mb-1">قيد الانتظار</p>
+                            <p class="text-3xl font-bold text-yellow-600" id="pendingMaintenance">0</p>
+                        </div>
+                        <div class="bg-yellow-100 p-4 rounded-xl">
+                            <i class="fas fa-clock text-2xl text-yellow-600"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-2xl shadow-lg p-6 border-r-4 border-blue-500">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600 text-sm mb-1">قيد التنفيذ</p>
+                            <p class="text-3xl font-bold text-blue-600" id="inProgressMaintenance">0</p>
+                        </div>
+                        <div class="bg-blue-100 p-4 rounded-xl">
+                            <i class="fas fa-cogs text-2xl text-blue-600"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-2xl shadow-lg p-6 border-r-4 border-green-500">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600 text-sm mb-1">مكتملة</p>
+                            <p class="text-3xl font-bold text-green-600" id="completedMaintenance">0</p>
+                        </div>
+                        <div class="bg-green-100 p-4 rounded-xl">
+                            <i class="fas fa-check-circle text-2xl text-green-600"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-2xl shadow-lg p-6">
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="text-right py-4 px-4 text-sm font-semibold text-gray-700">رقم الطلب</th>
+                                <th class="text-right py-4 px-4 text-sm font-semibold text-gray-700">الأصل</th>
+                                <th class="text-right py-4 px-4 text-sm font-semibold text-gray-700">نوع الصيانة</th>
+                                <th class="text-right py-4 px-4 text-sm font-semibold text-gray-700">التاريخ</th>
+                                <th class="text-right py-4 px-4 text-sm font-semibold text-gray-700">التكلفة</th>
+                                <th class="text-right py-4 px-4 text-sm font-semibold text-gray-700">الحالة</th>
+                                <th class="text-center py-4 px-4 text-sm font-semibold text-gray-700">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="maintenanceTableBody">
+                            <!-- Filled by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Settings Page -->
+        <div id="page-settings" class="page-content p-6 hidden">
+            <div class="max-w-4xl mx-auto">
+                <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">إعدادات النظام</h3>
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">اسم الجهة الحكومية</label>
+                            <input type="text" id="orgName" class="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-gov-blue-light" value="وزارة المالية">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">عملة النظام</label>
+                            <select id="currency" class="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                                <option value="SAR">ريال سعودي (SAR)</option>
+                                <option value="USD">دولار أمريكي (USD)</option>
+                                <option value="EUR">يورو (EUR)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">نسبة الإهلاك السنوي الافتراضية</label>
+                            <input type="number" id="depreciationRate" class="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-gov-blue-light" value="10" min="0" max="100">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">إدارة الفئات</h3>
+                    <div id="categoriesList" class="space-y-2 mb-4">
+                        <!-- Filled by JS -->
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="text" id="newCategory" placeholder="فئة جديدة..." class="flex-1 px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                        <button onclick="addCategory()" class="bg-gov-blue text-white px-6 py-2 rounded-xl hover:bg-gov-blue-light transition-colors">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-2xl shadow-lg p-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">النسخ الاحتياطي</h3>
+                    <div class="flex gap-4">
+                        <button onclick="exportAllData()" class="flex-1 bg-gov-green text-white py-3 rounded-xl font-semibold hover:bg-green-700 transition-colors">
+                            <i class="fas fa-download ml-2"></i>
+                            تصدير البيانات
+                        </button>
+                        <label class="flex-1">
+                            <input type="file" id="importFile" class="hidden" accept=".json" onchange="importData(event)">
+                            <span class="block w-full bg-gov-gold text-white py-3 rounded-xl font-semibold hover:bg-amber-600 transition-colors text-center cursor-pointer">
+                                <i class="fas fa-upload ml-2"></i>
+                                استيراد البيانات
+                            </span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Add/Edit Asset Modal -->
+    <div id="assetModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            <div class="bg-gradient-to-r from-gov-blue to-indigo-700 text-white p-6 flex items-center justify-between">
+                <h2 class="text-2xl font-bold" id="assetModalTitle">إضافة أصل جديد</h2>
+                <button onclick="closeAssetModal()" class="hover:bg-white/20 p-2 rounded-lg transition-colors">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto" style="max-height: calc(90vh - 100px);">
+                <form id="assetForm" class="space-y-6">
+                    <input type="hidden" id="assetId">
+                    
+                    <!-- Basic Information -->
+                    <div class="border-b pb-4 mb-4">
+                        <h4 class="text-lg font-semibold text-gray-800 mb-4"><i class="fas fa-info-circle ml-2 text-gov-blue"></i>المعلومات الأساسية</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">اسم الأصل <span class="text-red-500">*</span></label>
+                                <input type="text" id="assetName" name="name" required class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">كود الأصل <span class="text-red-500">*</span></label>
+                                <div class="flex gap-2">
+                                    <input type="text" id="assetCode" name="code" required class="flex-1 px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                                    <button type="button" onclick="generateCode()" class="bg-gray-200 px-4 py-2 rounded-xl hover:bg-gray-300 transition-colors" title="توليد كود تلقائي">
+                                        <i class="fas fa-magic"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">الفئة</label>
+                                <select id="assetCategory" name="category" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                                    <!-- Filled by JS -->
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">الرقم التسلسلي</label>
+                                <div class="flex gap-2">
+                                    <input type="text" id="assetSerial" name="serialNumber" class="flex-1 px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                                    <button type="button" onclick="scanBarcode()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition-colors" title="مسح الباركود">
+                                        <i class="fas fa-barcode"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Location Information -->
+                    <div class="border-b pb-4 mb-4">
+                        <h4 class="text-lg font-semibold text-gray-800 mb-4"><i class="fas fa-map-marker-alt ml-2 text-gov-green"></i>معلومات الموقع</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">الإدارة/القسم</label>
+                                <select id="assetDepartment" name="department" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                                    <!-- Filled by JS -->
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">الموقع التفصيلي</label>
+                                <input type="text" id="assetLocation" name="location" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light" placeholder="مثال: الطابق الثاني - الغرفة 205">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Financial Information -->
+                    <div class="border-b pb-4 mb-4">
+                        <h4 class="text-lg font-semibold text-gray-800 mb-4"><i class="fas fa-money-bill-wave ml-2 text-gov-gold"></i>المعلومات المالية</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">سعر الشراء</label>
+                                <input type="number" id="assetPurchasePrice" name="purchasePrice" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light" min="0" step="0.01">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">القيمة الحالية</label>
+                                <input type="number" id="assetCurrentValue" name="currentValue" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light" min="0" step="0.01">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">تاريخ الشراء</label>
+                                <input type="date" id="assetPurchaseDate" name="purchaseDate" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Additional Information -->
+                    <div class="border-b pb-4 mb-4">
+                        <h4 class="text-lg font-semibold text-gray-800 mb-4"><i class="fas fa-clipboard-list ml-2 text-purple-600"></i>معلومات إضافية</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">الحالة</label>
+                                <select id="assetCondition" name="condition" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                                    <option value="ممتاز">ممتاز</option>
+                                    <option value="جيد" selected>جيد</option>
+                                    <option value="مقبول">مقبول</option>
+                                    <option value="يحتاج صيانة">يحتاج صيانة</option>
+                                    <option value="تالف">تالف</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">المورد</label>
+                                <input type="text" id="assetSupplier" name="supplier" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">تاريخ انتهاء الضمان</label>
+                                <input type="date" id="assetWarranty" name="warranty" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">المستخدم/المسؤول</label>
+                                <input type="text" id="assetAssignee" name="assignee" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Images -->
+                    <div class="border-b pb-4 mb-4">
+                        <h4 class="text-lg font-semibold text-gray-800 mb-4"><i class="fas fa-images ml-2 text-pink-600"></i>صور الأصل (حتى 3 صور)</h4>
+                        <div class="border-2 border-dashed border-gray-300 rounded-xl p-6">
+                            <input type="file" id="assetImages" accept="image/*" multiple class="hidden" onchange="handleImageUpload(event)">
+                            <label for="assetImages" class="cursor-pointer flex flex-col items-center justify-center">
+                                <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-2"></i>
+                                <p class="text-gray-600">انقر أو اسحب الصور هنا</p>
+                                <p class="text-sm text-gray-400 mt-1">PNG, JPG حتى 5MB</p>
+                            </label>
+                        </div>
+                        <div id="imagePreviewContainer" class="grid grid-cols-3 gap-4 mt-4">
+                            <!-- Image previews -->
+                        </div>
+                    </div>
+                    
+                    <!-- Notes -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">ملاحظات</label>
+                        <textarea id="assetNotes" name="notes" rows="3" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light" placeholder="أي ملاحظات إضافية..."></textarea>
+                    </div>
+                    
+                    <!-- Buttons -->
+                    <div class="flex gap-4 pt-4">
+                        <button type="submit" class="flex-1 bg-gradient-to-r from-gov-blue to-indigo-700 text-white py-3 rounded-xl font-semibold hover:shadow-lg transition-all">
+                            <i class="fas fa-save ml-2"></i>
+                            <span id="saveButtonText">حفظ الأصل</span>
+                        </button>
+                        <button type="button" onclick="closeAssetModal()" class="flex-1 bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300 transition-colors">
+                            إلغاء
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Asset Details Modal -->
+    <div id="assetDetailsModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            <div class="bg-gradient-to-r from-indigo-600 to-purple-700 text-white p-6 flex items-center justify-between">
+                <h2 class="text-2xl font-bold">تفاصيل الأصل</h2>
+                <div class="flex gap-2">
+                    <button onclick="editAsset()" class="hover:bg-white/20 p-2 rounded-lg transition-colors" title="تعديل">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button onclick="printAssetDetails()" class="hover:bg-white/20 p-2 rounded-lg transition-colors" title="طباعة">
+                        <i class="fas fa-print"></i>
+                    </button>
+                    <button onclick="generateBarcode()" class="hover:bg-white/20 p-2 rounded-lg transition-colors" title="طباعة الباركود">
+                        <i class="fas fa-barcode"></i>
+                    </button>
+                    <button onclick="closeAssetDetailsModal()" class="hover:bg-white/20 p-2 rounded-lg transition-colors">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="assetDetailsContent" class="p-6 overflow-y-auto" style="max-height: calc(90vh - 100px);">
+                <!-- Filled by JS -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Department Modal -->
+    <div id="departmentModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+            <div class="bg-gradient-to-r from-gov-blue to-indigo-700 text-white p-6 flex items-center justify-between">
+                <h2 class="text-xl font-bold" id="departmentModalTitle">إضافة إدارة جديدة</h2>
+                <button onclick="closeDepartmentModal()" class="hover:bg-white/20 p-2 rounded-lg transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <form id="departmentForm" class="space-y-4">
+                    <input type="hidden" id="departmentId">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">اسم الإدارة <span class="text-red-500">*</span></label>
+                        <input type="text" id="departmentName" required class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">الإدارة الرئيسية</label>
+                        <select id="parentDepartment" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                            <option value="">-- لا يوجد --</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">الموقع</label>
+                        <input type="text" id="departmentLocation" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">المسؤول</label>
+                        <input type="text" id="departmentManager" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                    </div>
+                    <div class="flex gap-4 pt-4">
+                        <button type="submit" class="flex-1 bg-gov-blue text-white py-3 rounded-xl font-semibold hover:bg-gov-blue-light transition-colors">
+                            حفظ
+                        </button>
+                        <button type="button" onclick="closeDepartmentModal()" class="flex-1 bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300 transition-colors">
+                            إلغاء
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Maintenance Modal -->
+    <div id="maintenanceModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
+            <div class="bg-gradient-to-r from-orange-500 to-red-600 text-white p-6 flex items-center justify-between">
+                <h2 class="text-xl font-bold">طلب صيانة جديد</h2>
+                <button onclick="closeMaintenanceModal()" class="hover:bg-white/20 p-2 rounded-lg transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <form id="maintenanceForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">الأصل <span class="text-red-500">*</span></label>
+                        <select id="maintenanceAsset" required class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                            <!-- Filled by JS -->
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">نوع الصيانة</label>
+                        <select id="maintenanceType" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                            <option value="وقائية">صيانة وقائية</option>
+                            <option value="تصحيحية">صيانة تصحيحية</option>
+                            <option value="طارئة">صيانة طارئة</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">الأولوية</label>
+                        <select id="maintenancePriority" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                            <option value="منخفضة">منخفضة</option>
+                            <option value="متوسطة" selected>متوسطة</option>
+                            <option value="عالية">عالية</option>
+                            <option value="عاجلة">عاجلة</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">وصف المشكلة</label>
+                        <textarea id="maintenanceDescription" rows="3" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light"></textarea>
+                    </div>
+                    <div class="flex gap-4 pt-4">
+                        <button type="submit" class="flex-1 bg-orange-500 text-white py-3 rounded-xl font-semibold hover:bg-orange-600 transition-colors">
+                            إرسال الطلب
+                        </button>
+                        <button type="button" onclick="closeMaintenanceModal()" class="flex-1 bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300 transition-colors">
+                            إلغاء
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Barcode Print Modal -->
+    <div id="barcodeModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+            <div class="bg-gradient-to-r from-gray-700 to-gray-900 text-white p-6 flex items-center justify-between">
+                <h2 class="text-xl font-bold">طباعة الباركود</h2>
+                <button onclick="closeBarcodeModal()" class="hover:bg-white/20 p-2 rounded-lg transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-6 text-center">
+                <div id="barcodeContainer" class="bg-white p-4 border-2 border-dashed border-gray-300 rounded-xl mb-4">
+                    <svg id="barcodeImage"></svg>
+                    <p id="barcodeAssetName" class="text-sm font-semibold text-gray-700 mt-2"></p>
+                </div>
+                <div class="flex gap-4">
+                    <button onclick="printBarcode()" class="flex-1 bg-gov-blue text-white py-3 rounded-xl font-semibold hover:bg-gov-blue-light transition-colors">
+                        <i class="fas fa-print ml-2"></i>
+                        طباعة
+                    </button>
+                    <button onclick="closeBarcodeModal()" class="flex-1 bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300 transition-colors">
+                        إغلاق
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-4 left-4 bg-gray-800 text-white px-6 py-3 rounded-xl shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 z-50">
+        <div class="flex items-center gap-3">
+            <i id="toastIcon" class="fas fa-check-circle text-green-400"></i>
+            <span id="toastMessage">تم الحفظ بنجاح</span>
+        </div>
+    </div>
+    
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-2xl p-8 text-center">
+            <div class="animate-spin w-16 h-16 border-4 border-gov-blue border-t-transparent rounded-full mx-auto mb-4"></div>
+            <p class="text-gray-600">جاري التحميل...</p>
+        </div>
+    </div>
+    
+    <!-- Custom JavaScript -->
+    <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,1052 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Plus, Download, Edit2, Trash2, Eye, Package, Building2, DollarSign, BarChart3, Save, X, Camera, Scan } from 'lucide-react';
+
+export default function AssetInventorySystem() {
+  const [assets, setAssets] = useState([]);
+  const [filteredAssets, setFilteredAssets] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterCategory, setFilterCategory] = useState('الكل');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedAsset, setSelectedAsset] = useState(null);
+  const [editMode, setEditMode] = useState(false);
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+
+  const categories = ['الكل', 'أثاث', 'معدات إلكترونية', 'مركبات', 'أجهزة طبية', 'معدات مكتبية', 'أخرى'];
+  const conditions = ['ممتاز', 'جيد', 'مقبول', 'يحتاج صيانة', 'تالف'];
+
+  const [formData, setFormData] = useState({
+    name: '',
+    code: '',
+    category: 'أثاث',
+    location: '',
+    department: '',
+    purchaseDate: '',
+    purchasePrice: '',
+    currentValue: '',
+    condition: 'جيد',
+    serialNumber: '',
+    supplier: '',
+    warranty: '',
+    notes: '',
+    images: []
+  });
+
+  useEffect(() => {
+    const sampleAssets = [
+      {
+        id: 1,
+        name: 'جهاز كمبيوتر ديل',
+        code: 'IT-2024-001',
+        category: 'معدات إلكترونية',
+        location: 'الطابق الثالث - قسم تقنية المعلومات',
+        department: 'تقنية المعلومات',
+        purchaseDate: '2024-01-15',
+        purchasePrice: '3500',
+        currentValue: '3000',
+        condition: 'ممتاز',
+        serialNumber: 'DL-2024-XYZ-123',
+        supplier: 'شركة التقنية المتقدمة',
+        warranty: '2026-01-15',
+        notes: 'جهاز حديث بمواصفات عالية',
+        images: []
+      },
+      {
+        id: 2,
+        name: 'مكتب خشبي تنفيذي',
+        code: 'FRN-2023-045',
+        category: 'أثاث',
+        location: 'الطابق الثاني - مكتب المدير',
+        department: 'الإدارة',
+        purchaseDate: '2023-05-20',
+        purchasePrice: '2800',
+        currentValue: '2200',
+        condition: 'جيد',
+        serialNumber: 'WD-2023-456',
+        supplier: 'مؤسسة الأثاث الفاخر',
+        warranty: 'منتهية',
+        notes: 'مكتب خشب طبيعي',
+        images: []
+      },
+      {
+        id: 3,
+        name: 'سيارة تويوتا كامري',
+        code: 'VEH-2022-008',
+        category: 'مركبات',
+        location: 'موقف السيارات الرئيسي',
+        department: 'النقل',
+        purchaseDate: '2022-08-10',
+        purchasePrice: '95000',
+        currentValue: '75000',
+        condition: 'جيد',
+        serialNumber: 'TY-2022-ABC-789',
+        supplier: 'وكيل تويوتا المعتمد',
+        warranty: 'منتهية',
+        notes: 'صيانة دورية منتظمة',
+        images: []
+      }
+    ];
+    setAssets(sampleAssets);
+    setFilteredAssets(sampleAssets);
+  }, []);
+
+  useEffect(() => {
+    let filtered = assets;
+
+    if (searchTerm) {
+      filtered = filtered.filter(asset =>
+        asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        asset.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        asset.department.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    if (filterCategory !== 'الكل') {
+      filtered = filtered.filter(asset => asset.category === filterCategory);
+    }
+
+    setFilteredAssets(filtered);
+  }, [searchTerm, filterCategory, assets]);
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files);
+    const maxImages = 3;
+    
+    if (formData.images.length + files.length > maxImages) {
+      alert(`يمكنك إضافة ${maxImages} صور كحد أقصى`);
+      return;
+    }
+
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({
+          ...prev,
+          images: [...prev.images, reader.result]
+        }));
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeImage = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }));
+  };
+
+  const startBarcodeScanner = async () => {
+    setShowBarcodeScanner(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'environment' } 
+      });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+        scanBarcode();
+      }
+    } catch (err) {
+      alert('لا يمكن الوصول إلى الكاميرا. تأكد من منح الإذن.');
+      setShowBarcodeScanner(false);
+    }
+  };
+
+  const stopBarcodeScanner = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const tracks = videoRef.current.srcObject.getTracks();
+      tracks.forEach(track => track.stop());
+    }
+    setShowBarcodeScanner(false);
+  };
+
+  const scanBarcode = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
+    const context = canvas.getContext('2d');
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+    
+    // محاكاة قراءة الباركود (في التطبيق الحقيقي، استخدم مكتبة مثل QuaggaJS)
+    // هنا نستخدم محاكاة بسيطة
+    setTimeout(() => {
+      if (showBarcodeScanner) {
+        scanBarcode();
+      }
+    }, 100);
+  };
+
+  const simulateBarcodeRead = () => {
+    // محاكاة قراءة باركود
+    const mockBarcode = 'BC-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+    setFormData(prev => ({ ...prev, serialNumber: mockBarcode }));
+    stopBarcodeScanner();
+    alert(`تم قراءة الباركود: ${mockBarcode}`);
+  };
+
+  const handleAddAsset = () => {
+    if (!formData.name || !formData.code) {
+      alert('يرجى إدخال اسم الأصل والكود على الأقل');
+      return;
+    }
+    const newAsset = {
+      id: Date.now(),
+      ...formData
+    };
+    setAssets([...assets, newAsset]);
+    setShowAddModal(false);
+    resetForm();
+  };
+
+  const handleUpdateAsset = () => {
+    setAssets(assets.map(asset =>
+      asset.id === selectedAsset.id ? { ...asset, ...formData } : asset
+    ));
+    setShowDetailsModal(false);
+    setEditMode(false);
+    resetForm();
+  };
+
+  const handleDeleteAsset = (id) => {
+    if (window.confirm('هل أنت متأكد من حذف هذا الأصل؟')) {
+      setAssets(assets.filter(asset => asset.id !== id));
+      setShowDetailsModal(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      code: '',
+      category: 'أثاث',
+      location: '',
+      department: '',
+      purchaseDate: '',
+      purchasePrice: '',
+      currentValue: '',
+      condition: 'جيد',
+      serialNumber: '',
+      supplier: '',
+      warranty: '',
+      notes: '',
+      images: []
+    });
+  };
+
+  const openDetailsModal = (asset) => {
+    setSelectedAsset(asset);
+    setFormData(asset);
+    setShowDetailsModal(true);
+    setEditMode(false);
+  };
+
+  const exportToCSV = () => {
+    const headers = ['الكود', 'الاسم', 'الفئة', 'الموقع', 'القسم', 'تاريخ الشراء', 'سعر الشراء', 'القيمة الحالية', 'الحالة'];
+    const rows = filteredAssets.map(asset => [
+      asset.code,
+      asset.name,
+      asset.category,
+      asset.location,
+      asset.department,
+      asset.purchaseDate,
+      asset.purchasePrice,
+      asset.currentValue,
+      asset.condition
+    ]);
+
+    let csvContent = '\uFEFF' + headers.join(',') + '\n';
+    rows.forEach(row => {
+      csvContent += row.join(',') + '\n';
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `جرد_الأصول_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+  };
+
+  const calculateTotalValue = () => {
+    return filteredAssets.reduce((sum, asset) => sum + parseFloat(asset.currentValue || 0), 0);
+  };
+
+  const getConditionColor = (condition) => {
+    const colors = {
+      'ممتاز': 'bg-green-100 text-green-700',
+      'جيد': 'bg-blue-100 text-blue-700',
+      'مقبول': 'bg-yellow-100 text-yellow-700',
+      'يحتاج صيانة': 'bg-orange-100 text-orange-700',
+      'تالف': 'bg-red-100 text-red-700'
+    };
+    return colors[condition] || 'bg-gray-100 text-gray-700';
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50" dir="rtl">
+      <header className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-lg">
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-white/20 p-3 rounded-lg backdrop-blur-sm">
+                <Package className="w-8 h-8" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold">نظام جرد وحصر الأصول الحكومية</h1>
+                <p className="text-blue-100 text-sm mt-1">إدارة شاملة ومتكاملة للأصول مع دعم الصور والباركود</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold flex items-center gap-2 hover:bg-blue-50 transition-all shadow-lg hover:shadow-xl"
+            >
+              <Plus className="w-5 h-5" />
+              إضافة أصل جديد
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="container mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-xl shadow-lg p-6 border-r-4 border-blue-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm mb-1">إجمالي الأصول</p>
+                <p className="text-3xl font-bold text-gray-800">{filteredAssets.length}</p>
+              </div>
+              <div className="bg-blue-100 p-4 rounded-lg">
+                <Package className="w-8 h-8 text-blue-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-lg p-6 border-r-4 border-green-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm mb-1">القيمة الإجمالية</p>
+                <p className="text-3xl font-bold text-gray-800">{calculateTotalValue().toLocaleString()}</p>
+                <p className="text-xs text-gray-500 mt-1">ريال سعودي</p>
+              </div>
+              <div className="bg-green-100 p-4 rounded-lg">
+                <DollarSign className="w-8 h-8 text-green-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-lg p-6 border-r-4 border-purple-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm mb-1">الفئات</p>
+                <p className="text-3xl font-bold text-gray-800">{categories.length - 1}</p>
+              </div>
+              <div className="bg-purple-100 p-4 rounded-lg">
+                <BarChart3 className="w-8 h-8 text-purple-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-lg p-6 border-r-4 border-orange-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm mb-1">الإدارات</p>
+                <p className="text-3xl font-bold text-gray-800">{new Set(assets.map(a => a.department)).size}</p>
+              </div>
+              <div className="bg-orange-100 p-4 rounded-lg">
+                <Building2 className="w-8 h-8 text-orange-600" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:col-span-2">
+              <div className="relative">
+                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  placeholder="البحث عن أصل (الاسم، الكود، القسم...)"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pr-12 pl-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <select
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {categories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                onClick={exportToCSV}
+                className="bg-green-600 text-white px-6 py-3 rounded-lg flex items-center gap-2 hover:bg-green-700 transition-colors"
+              >
+                <Download className="w-5 h-5" />
+                تصدير
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                <tr>
+                  <th className="px-6 py-4 text-right text-sm font-semibold text-gray-700">الكود</th>
+                  <th className="px-6 py-4 text-right text-sm font-semibold text-gray-700">اسم الأصل</th>
+                  <th className="px-6 py-4 text-right text-sm font-semibold text-gray-700">الفئة</th>
+                  <th className="px-6 py-4 text-right text-sm font-semibold text-gray-700">القسم</th>
+                  <th className="px-6 py-4 text-right text-sm font-semibold text-gray-700">الموقع</th>
+                  <th className="px-6 py-4 text-right text-sm font-semibold text-gray-700">القيمة الحالية</th>
+                  <th className="px-6 py-4 text-right text-sm font-semibold text-gray-700">الحالة</th>
+                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">الإجراءات</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {filteredAssets.map(asset => (
+                  <tr key={asset.id} className="hover:bg-blue-50 transition-colors">
+                    <td className="px-6 py-4 text-sm font-medium text-blue-600">{asset.code}</td>
+                    <td className="px-6 py-4 text-sm text-gray-800 font-medium">{asset.name}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{asset.category}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{asset.department}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{asset.location}</td>
+                    <td className="px-6 py-4 text-sm font-semibold text-green-600">{parseFloat(asset.currentValue).toLocaleString()} ر.س</td>
+                    <td className="px-6 py-4">
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getConditionColor(asset.condition)}`}>
+                        {asset.condition}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => openDetailsModal(asset)}
+                          className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                          title="عرض التفاصيل"
+                        >
+                          <Eye className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteAsset(asset.id)}
+                          className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                          title="حذف"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-6 flex items-center justify-between rounded-t-xl sticky top-0">
+              <h2 className="text-2xl font-bold">إضافة أصل جديد</h2>
+              <button onClick={() => setShowAddModal(false)} className="hover:bg-white/20 p-2 rounded-lg transition-colors">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">اسم الأصل *</label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">كود الأصل *</label>
+                  <input
+                    type="text"
+                    name="code"
+                    value={formData.code}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">الفئة</label>
+                  <select
+                    name="category"
+                    value={formData.category}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    {categories.filter(c => c !== 'الكل').map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">القسم</label>
+                  <input
+                    type="text"
+                    name="department"
+                    value={formData.department}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">الموقع</label>
+                  <input
+                    type="text"
+                    name="location"
+                    value={formData.location}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">تاريخ الشراء</label>
+                  <input
+                    type="date"
+                    name="purchaseDate"
+                    value={formData.purchaseDate}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">سعر الشراء</label>
+                  <input
+                    type="number"
+                    name="purchasePrice"
+                    value={formData.purchasePrice}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">القيمة الحالية</label>
+                  <input
+                    type="number"
+                    name="currentValue"
+                    value={formData.currentValue}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">الحالة</label>
+                  <select
+                    name="condition"
+                    value={formData.condition}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    {conditions.map(cond => (
+                      <option key={cond} value={cond}>{cond}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">الرقم التسلسلي</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      name="serialNumber"
+                      value={formData.serialNumber}
+                      onChange={handleInputChange}
+                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={startBarcodeScanner}
+                      className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
+                      title="مسح الباركود"
+                    >
+                      <Scan className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">المورد</label>
+                  <input
+                    type="text"
+                    name="supplier"
+                    value={formData.supplier}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">تاريخ انتهاء الضمان</label>
+                  <input
+                    type="date"
+                    name="warranty"
+                    value={formData.warranty}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    صور الأصل (حتى 3 صور)
+                  </label>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      id="image-upload"
+                      disabled={formData.images.length >= 3}
+                    />
+                    <label
+                      htmlFor="image-upload"
+                      className={`flex flex-col items-center justify-center cursor-pointer ${formData.images.length >= 3 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <Camera className="w-12 h-12 text-gray-400 mb-2" />
+                      <p className="text-sm text-gray-600 text-center">
+                        انقر لرفع الصور ({formData.images.length}/3)
+                      </p>
+                    </label>
+                    
+                    {formData.images.length > 0 && (
+                      <div className="grid grid-cols-3 gap-4 mt-4">
+                        {formData.images.map((img, idx) => (
+                          <div key={idx} className="relative group">
+                            <img
+                              src={img}
+                              alt={`صورة ${idx + 1}`}
+                              className="w-full h-32 object-cover rounded-lg border-2 border-gray-200"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeImage(idx)}
+                              className="absolute top-1 left-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">ملاحظات</label>
+                  <textarea
+                    name="notes"
+                    value={formData.notes}
+                    onChange={handleInputChange}
+                    rows="3"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-4 mt-6">
+                <button
+                  onClick={handleAddAsset}
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-3 rounded-lg font-semibold hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                >
+                  <Save className="w-5 h-5" />
+                  حفظ الأصل
+                </button>
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDetailsModal && selectedAsset && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-700 text-white p-6 flex items-center justify-between rounded-t-xl sticky top-0">
+              <h2 className="text-2xl font-bold">تفاصيل الأصل</h2>
+              <div className="flex gap-2">
+                {!editMode && (
+                  <button
+                    onClick={() => setEditMode(true)}
+                    className="hover:bg-white/20 p-2 rounded-lg transition-colors"
+                  >
+                    <Edit2 className="w-5 h-5" />
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowDetailsModal(false)}
+                  className="hover:bg-white/20 p-2 rounded-lg transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            <div className="p-6">
+              {editMode ? (
+                <div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">اسم الأصل</label>
+                      <input
+                        type="text"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">كود الأصل</label>
+                      <input
+                        type="text"
+                        name="code"
+                        value={formData.code}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">الفئة</label>
+                      <select
+                        name="category"
+                        value={formData.category}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      >
+                        {categories.filter(c => c !== 'الكل').map(cat => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">القسم</label>
+                      <input
+                        type="text"
+                        name="department"
+                        value={formData.department}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">الموقع</label>
+                      <input
+                        type="text"
+                        name="location"
+                        value={formData.location}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">تاريخ الشراء</label>
+                      <input
+                        type="date"
+                        name="purchaseDate"
+                        value={formData.purchaseDate}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">سعر الشراء</label>
+                      <input
+                        type="number"
+                        name="purchasePrice"
+                        value={formData.purchasePrice}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">القيمة الحالية</label>
+                      <input
+                        type="number"
+                        name="currentValue"
+                        value={formData.currentValue}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">الحالة</label>
+                      <select
+                        name="condition"
+                        value={formData.condition}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      >
+                        {conditions.map(cond => (
+                          <option key={cond} value={cond}>{cond}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">الرقم التسلسلي</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          name="serialNumber"
+                          value={formData.serialNumber}
+                          onChange={handleInputChange}
+                          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={startBarcodeScanner}
+                          className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
+                        >
+                          <Scan className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">المورد</label>
+                      <input
+                        type="text"
+                        name="supplier"
+                        value={formData.supplier}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">تاريخ انتهاء الضمان</label>
+                      <input
+                        type="date"
+                        name="warranty"
+                        value={formData.warranty}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        صور الأصل (حتى 3 صور)
+                      </label>
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={handleImageUpload}
+                          className="hidden"
+                          id="image-upload-edit"
+                          disabled={formData.images.length >= 3}
+                        />
+                        <label
+                          htmlFor="image-upload-edit"
+                          className={`flex flex-col items-center justify-center cursor-pointer ${formData.images.length >= 3 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          <Camera className="w-12 h-12 text-gray-400 mb-2" />
+                          <p className="text-sm text-gray-600 text-center">
+                            انقر لرفع الصور ({formData.images.length}/3)
+                          </p>
+                        </label>
+                        
+                        {formData.images.length > 0 && (
+                          <div className="grid grid-cols-3 gap-4 mt-4">
+                            {formData.images.map((img, idx) => (
+                              <div key={idx} className="relative group">
+                                <img
+                                  src={img}
+                                  alt={`صورة ${idx + 1}`}
+                                  className="w-full h-32 object-cover rounded-lg border-2 border-gray-200"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => removeImage(idx)}
+                                  className="absolute top-1 left-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">ملاحظات</label>
+                      <textarea
+                        name="notes"
+                        value={formData.notes}
+                        onChange={handleInputChange}
+                        rows="3"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-4 mt-6">
+                    <button
+                      onClick={handleUpdateAsset}
+                      className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-3 rounded-lg font-semibold hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                    >
+                      <Save className="w-5 h-5" />
+                      حفظ التعديلات
+                    </button>
+                    <button
+                      onClick={() => setEditMode(false)}
+                      className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
+                    >
+                      إلغاء
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <p className="text-sm text-gray-600 mb-1">اسم الأصل</p>
+                      <p className="text-lg font-semibold text-gray-800">{selectedAsset.name}</p>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <p className="text-sm text-gray-600 mb-1">كود الأصل</p>
+                      <p className="text-lg font-semibold text-blue-600">{selectedAsset.code}</p>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <p className="text-sm text-gray-600 mb-1">الفئة</p>
+                      <p className="text-lg font-semibold text-gray-800">{selectedAsset.category}</p>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <p className="text-sm text-gray-600 mb-1">القسم</p>
+                      <p className="text-lg font-semibold text-gray-800">{selectedAsset.department}</p>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-lg md:col-span-2">
+                      <p className="text-sm text-gray-600 mb-1">الموقع</p>
+                      <p className="text-lg font-semibold text-gray-800">{selectedAsset.location}</p>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <p className="text-sm text-gray-600 mb-1">تاريخ الشراء</p>
+                      <p className="text-lg font-semibold text-gray-800">{selectedAsset.purchaseDate}</p>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <p className="text-sm text-gray-600 mb-1">سعر الشراء</p>
+                      <p className="text-lg font-semibold text-green-600">{parseFloat(selectedAsset.purchasePrice).toLocaleString()} ر.س</p>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <p className="text-sm text-gray-600 mb-1">القيمة الحالية</p>
+                      <p className="text-lg font-semibold text-green-600">{parseFloat(selectedAsset.currentValue).toLocaleString()} ر.س</p>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <p className="text-sm text-gray-600 mb-1">الحالة</p>
+                      <span className={`inline-block px-4 py-2 rounded-full text-sm font-semibold ${getConditionColor(selectedAsset.condition)}`}>
+                        {selectedAsset.condition}
+                      </span>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <p className="text-sm text-gray-600 mb-1">الرقم التسلسلي</p>
+                      <p className="text-lg font-semibold text-gray-800">{selectedAsset.serialNumber}</p>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <p className="text-sm text-gray-600 mb-1">المورد</p>
+                      <p className="text-lg font-semibold text-gray-800">{selectedAsset.supplier}</p>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <p className="text-sm text-gray-600 mb-1">تاريخ انتهاء الضمان</p>
+                      <p className="text-lg font-semibold text-gray-800">{selectedAsset.warranty}</p>
+                    </div>
+                    
+                    {selectedAsset.images && selectedAsset.images.length > 0 && (
+                      <div className="bg-gray-50 p-4 rounded-lg md:col-span-2">
+                        <p className="text-sm text-gray-600 mb-3">صور الأصل</p>
+                        <div className="grid grid-cols-3 gap-4">
+                          {selectedAsset.images.map((img, idx) => (
+                            <img
+                              key={idx}
+                              src={img}
+                              alt={`صورة ${idx + 1}`}
+                              className="w-full h-48 object-cover rounded-lg border-2 border-gray-200 cursor-pointer hover:border-blue-500 transition-colors"
+                              onClick={() => window.open(img, '_blank')}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="bg-gray-50 p-4 rounded-lg md:col-span-2">
+                      <p className="text-sm text-gray-600 mb-1">ملاحظات</p>
+                      <p className="text-base text-gray-800">{selectedAsset.notes || 'لا توجد ملاحظات'}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBarcodeScanner && (
+        <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full">
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-700 text-white p-6 flex items-center justify-between rounded-t-xl">
+              <h2 className="text-2xl font-bold">مسح الباركود</h2>
+              <button onClick={stopBarcodeScanner} className="hover:bg-white/20 p-2 rounded-lg transition-colors">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-6">
+              <div className="bg-gray-100 rounded-lg overflow-hidden mb-4">
+                <video
+                  ref={videoRef}
+                  className="w-full h-64 object-cover"
+                  autoPlay
+                  playsInline
+                />
+                <canvas ref={canvasRef} className="hidden" />
+              </div>
+              <div className="text-center">
+                <p className="text-gray-600 mb-4">وجه الكاميرا نحو الباركود</p>
+                <button
+                  onClick={simulateBarcodeRead}
+                  className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+                >
+                  محاكاة قراءة الباركود (للاختبار)
+                </button>
+                <p className="text-xs text-gray-500 mt-2">
+                  ملاحظة: في التطبيق الحقيقي، سيتم قراءة الباركود تلقائياً
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
