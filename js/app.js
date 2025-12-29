@@ -6,14 +6,16 @@
 
 // === Database Configuration ===
 const DB_NAME = 'AssetInventoryDB';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORES = {
     assets: 'assets',
     departments: 'departments',
     maintenance: 'maintenance',
     inventoryLogs: 'inventory_logs',
     settings: 'settings',
-    syncQueue: 'sync_queue'
+    syncQueue: 'sync_queue',
+    activityLogs: 'activity_logs',
+    assetLocations: 'asset_locations'
 };
 
 // === Application State ===
@@ -22,8 +24,47 @@ const APP_STATE = {
     departments: [],
     maintenance: [],
     inventoryLogs: [],
-    categories: ['أثاث', 'معدات إلكترونية', 'مركبات', 'أجهزة طبية', 'معدات مكتبية', 'أجهزة كهربائية', 'أخرى'],
-    locations: ['الطابق الأول - مكتب 101', 'الطابق الثاني - غرفة 201', 'الطابق الثالث - قاعة الاجتماعات', 'المستودع', 'موقف السيارات'],
+    activityLogs: [], // سجل متابعة التعديلات
+    assetLocations: [], // مواقع الأصول
+    // الفئات الموسعة - الفئة 1 (الرئيسية)
+    categories: [
+        'أثاث مكتبي', 'أثاث استقبال', 'أثاث قاعات اجتماعات', 'أثاث مختبرات',
+        'أجهزة حاسب آلي', 'أجهزة محمولة', 'طابعات وماسحات', 'خوادم وشبكات', 'شاشات عرض',
+        'مركبات نقل', 'مركبات خدمات', 'معدات نقل ثقيل',
+        'أجهزة طبية تشخيصية', 'أجهزة طبية علاجية', 'معدات مختبرات طبية',
+        'معدات مكتبية', 'آلات تصوير', 'أجهزة عرض',
+        'مكيفات', 'مولدات كهربائية', 'أجهزة إنارة', 'معدات أمن وسلامة',
+        'معدات صيانة', 'معدات نظافة', 'معدات حدائق',
+        'أخرى'
+    ],
+    // الفئة 2 (الفرعية)
+    categories2: [
+        'كراسي', 'مكاتب', 'طاولات', 'خزائن', 'أرفف',
+        'ديسكتوب', 'لابتوب', 'تابلت', 'هاتف ذكي',
+        'طابعة ليزر', 'طابعة حبر', 'ماسح ضوئي', 'آلة تصوير',
+        'سيرفر', 'راوتر', 'سويتش', 'فايروول',
+        'سيارة صغيرة', 'سيارة نقل', 'حافلة', 'دراجة نارية',
+        'جهاز أشعة', 'جهاز موجات', 'جهاز تحليل',
+        'أخرى'
+    ],
+    // الفئة 3 (التفصيلية)
+    categories3: [
+        'كرسي مدير', 'كرسي موظف', 'كرسي انتظار', 'كرسي دوار',
+        'مكتب مدير', 'مكتب موظف', 'مكتب استقبال', 'مكتب كمبيوتر',
+        'طاولة اجتماعات', 'طاولة طعام', 'طاولة عمل', 'طاولة خدمة',
+        'خزانة ملفات', 'خزانة أدوات', 'خزانة ملابس', 'خزانة عرض',
+        'Dell', 'HP', 'Lenovo', 'Apple', 'Asus', 'Acer',
+        'تويوتا', 'نيسان', 'هيونداي', 'فورد', 'شيفروليه',
+        'أخرى'
+    ],
+    // أسماء الأصول المحفوظة
+    assetNames: [],
+    // الموردين المحفوظين
+    suppliers: [
+        'شركة التقنية المتقدمة', 'شركة الحاسب العربي', 'مؤسسة الأثاث الفاخر',
+        'شركة المستلزمات الطبية', 'وكيل تويوتا المعتمد', 'شركة الكهرباء والإنارة'
+    ],
+    locations: ['الطابق الأول - مكتب 101', 'الطابق الثاني - غرفة 201', 'الطابق الثالث - قاعة الاجتماعات', 'المستودع', 'موقف السيارات', 'المبنى الرئيسي', 'المبنى الفرعي', 'القبو', 'السطح'],
     assignees: [],
     conditions: ['ممتاز', 'جيد', 'مقبول', 'يحتاج صيانة', 'تالف'],
     currentPage: 1,
@@ -91,6 +132,18 @@ async function initDatabase() {
             if (!db.objectStoreNames.contains(STORES.syncQueue)) {
                 const syncStore = db.createObjectStore(STORES.syncQueue, { keyPath: 'id', autoIncrement: true });
                 syncStore.createIndex('timestamp', 'timestamp', { unique: false });
+            }
+            
+            // Activity logs store
+            if (!db.objectStoreNames.contains(STORES.activityLogs)) {
+                const activityStore = db.createObjectStore(STORES.activityLogs, { keyPath: 'id' });
+                activityStore.createIndex('timestamp', 'timestamp', { unique: false });
+                activityStore.createIndex('type', 'type', { unique: false });
+            }
+            
+            // Asset locations store
+            if (!db.objectStoreNames.contains(STORES.assetLocations)) {
+                db.createObjectStore(STORES.assetLocations, { keyPath: 'id' });
             }
         };
     });
@@ -239,6 +292,26 @@ async function loadSettings() {
             APP_STATE.assignees = assignees.value;
         }
         
+        const assetNames = await dbGet(STORES.settings, 'assetNames');
+        if (assetNames && assetNames.value) {
+            APP_STATE.assetNames = assetNames.value;
+        }
+        
+        const suppliers = await dbGet(STORES.settings, 'suppliers');
+        if (suppliers && suppliers.value) {
+            APP_STATE.suppliers = suppliers.value;
+        }
+        
+        const categories2 = await dbGet(STORES.settings, 'categories2');
+        if (categories2 && categories2.value) {
+            APP_STATE.categories2 = categories2.value;
+        }
+        
+        const categories3 = await dbGet(STORES.settings, 'categories3');
+        if (categories3 && categories3.value) {
+            APP_STATE.categories3 = categories3.value;
+        }
+        
     } catch (error) {
         console.error('Error loading settings:', error);
     }
@@ -249,8 +322,12 @@ async function saveSettings() {
         await dbPut(STORES.settings, { key: 'inventoryPerson', value: APP_STATE.inventoryPerson });
         await dbPut(STORES.settings, { key: 'lastSync', value: APP_STATE.lastSync ? APP_STATE.lastSync.toISOString() : null });
         await dbPut(STORES.settings, { key: 'categories', value: APP_STATE.categories });
+        await dbPut(STORES.settings, { key: 'categories2', value: APP_STATE.categories2 });
+        await dbPut(STORES.settings, { key: 'categories3', value: APP_STATE.categories3 });
         await dbPut(STORES.settings, { key: 'locations', value: APP_STATE.locations });
         await dbPut(STORES.settings, { key: 'assignees', value: APP_STATE.assignees });
+        await dbPut(STORES.settings, { key: 'assetNames', value: APP_STATE.assetNames });
+        await dbPut(STORES.settings, { key: 'suppliers', value: APP_STATE.suppliers });
     } catch (error) {
         console.error('Error saving settings:', error);
     }
@@ -1145,6 +1222,42 @@ function populateFilters() {
         });
     }
     
+    // Asset name dropdown
+    const assetNameSelect = document.getElementById('assetNameSelect');
+    if (assetNameSelect) {
+        assetNameSelect.innerHTML = '<option value="">-- اختر أو أدخل اسم جديد --</option>';
+        APP_STATE.assetNames.forEach(name => {
+            assetNameSelect.innerHTML += `<option value="${name}">${name}</option>`;
+        });
+    }
+    
+    // Supplier dropdown
+    const assetSupplierSelect = document.getElementById('assetSupplierSelect');
+    if (assetSupplierSelect) {
+        assetSupplierSelect.innerHTML = '<option value="">-- اختر أو أدخل مورد --</option>';
+        APP_STATE.suppliers.forEach(supplier => {
+            assetSupplierSelect.innerHTML += `<option value="${supplier}">${supplier}</option>`;
+        });
+    }
+    
+    // Category 2 dropdown
+    const assetCategory2 = document.getElementById('assetCategory2');
+    if (assetCategory2) {
+        assetCategory2.innerHTML = '<option value="">-- اختر الفئة الفرعية --</option>';
+        APP_STATE.categories2.forEach(cat => {
+            assetCategory2.innerHTML += `<option value="${cat}">${cat}</option>`;
+        });
+    }
+    
+    // Category 3 dropdown
+    const assetCategory3 = document.getElementById('assetCategory3');
+    if (assetCategory3) {
+        assetCategory3.innerHTML = '<option value="">-- اختر الفئة التفصيلية --</option>';
+        APP_STATE.categories3.forEach(cat => {
+            assetCategory3.innerHTML += `<option value="${cat}">${cat}</option>`;
+        });
+    }
+    
     // Maintenance asset dropdown
     updateMaintenanceAssetDropdown();
 }
@@ -1295,6 +1408,8 @@ function openAssetModal(assetId = null) {
             document.getElementById('assetName').value = asset.name || '';
             document.getElementById('assetCode').value = asset.code || '';
             document.getElementById('assetCategory').value = asset.category || '';
+            if (document.getElementById('assetCategory2')) document.getElementById('assetCategory2').value = asset.category2 || '';
+            if (document.getElementById('assetCategory3')) document.getElementById('assetCategory3').value = asset.category3 || '';
             document.getElementById('assetSerial').value = asset.serialNumber || '';
             document.getElementById('assetDepartment').value = asset.department || '';
             document.getElementById('assetLocation').value = asset.location || '';
@@ -1306,6 +1421,7 @@ function openAssetModal(assetId = null) {
             document.getElementById('assetWarranty').value = asset.warranty || '';
             document.getElementById('assetAssignee').value = asset.assignee || '';
             document.getElementById('assetInventoryPerson').value = asset.inventoryPerson || APP_STATE.inventoryPerson || '';
+            if (document.getElementById('assetTechnicalData')) document.getElementById('assetTechnicalData').value = asset.technicalData || '';
             document.getElementById('assetNotes').value = asset.notes || '';
             
             // Load images if any
@@ -1336,11 +1452,28 @@ async function handleAssetSubmit(e) {
     const isNew = !assetId;
     const finalId = isNew ? generateId() : assetId;
     
+    const assetName = document.getElementById('assetName').value;
+    const supplierName = document.getElementById('assetSupplier').value;
+    
+    // Save new asset name if not exists
+    if (assetName && !APP_STATE.assetNames.includes(assetName)) {
+        APP_STATE.assetNames.push(assetName);
+        saveSettings();
+    }
+    
+    // Save new supplier if not exists
+    if (supplierName && !APP_STATE.suppliers.includes(supplierName)) {
+        APP_STATE.suppliers.push(supplierName);
+        saveSettings();
+    }
+    
     const assetData = {
         id: finalId,
-        name: document.getElementById('assetName').value,
+        name: assetName,
         code: document.getElementById('assetCode').value,
         category: document.getElementById('assetCategory').value,
+        category2: document.getElementById('assetCategory2') ? document.getElementById('assetCategory2').value : '',
+        category3: document.getElementById('assetCategory3') ? document.getElementById('assetCategory3').value : '',
         serialNumber: document.getElementById('assetSerial').value,
         department: document.getElementById('assetDepartment').value,
         location: document.getElementById('assetLocation').value,
@@ -1348,11 +1481,12 @@ async function handleAssetSubmit(e) {
         currentValue: parseFloat(document.getElementById('assetCurrentValue').value) || 0,
         purchaseDate: document.getElementById('assetPurchaseDate').value,
         condition: document.getElementById('assetCondition').value,
-        supplier: document.getElementById('assetSupplier').value,
+        supplier: supplierName,
         warranty: document.getElementById('assetWarranty').value,
         assignee: document.getElementById('assetAssignee').value,
         inventoryPerson: document.getElementById('assetInventoryPerson').value,
         lastInventoryDate: new Date().toISOString().split('T')[0],
+        technicalData: document.getElementById('assetTechnicalData') ? document.getElementById('assetTechnicalData').value : '',
         notes: document.getElementById('assetNotes').value,
         images: APP_STATE.uploadedImages,
         updatedAt: Date.now()
@@ -1392,12 +1526,16 @@ async function handleAssetSubmit(e) {
             await addToSyncQueue(isNew ? 'create' : 'update', 'assets', assetData);
         }
         
+        // Log activity
+        await logActivity(isNew ? 'إضافة أصل' : 'تعديل أصل', 'asset', `${assetData.code} - ${assetData.name}`);
+        
         showToast(isNew ? 'تم إضافة الأصل بنجاح وحفظه محلياً' : 'تم تحديث الأصل بنجاح وحفظه محلياً', 'success');
         
         closeAssetModal();
         updateDashboard();
         renderAssetsTable();
         updateMaintenanceAssetDropdown();
+        populateFilters();
         
     } catch (error) {
         console.error('Error saving asset:', error);
@@ -1425,8 +1563,16 @@ function viewAssetDetails(assetId) {
                 <p class="text-lg font-semibold text-blue-600">${asset.code}</p>
             </div>
             <div class="bg-gray-50 p-4 rounded-xl">
-                <p class="text-sm text-gray-600 mb-1">الفئة</p>
+                <p class="text-sm text-gray-600 mb-1">الفئة 1 (الرئيسية)</p>
                 <p class="text-lg font-semibold text-gray-800">${asset.category}</p>
+            </div>
+            <div class="bg-gray-50 p-4 rounded-xl">
+                <p class="text-sm text-gray-600 mb-1">الفئة 2 (الفرعية)</p>
+                <p class="text-lg font-semibold text-gray-800">${asset.category2 || '-'}</p>
+            </div>
+            <div class="bg-gray-50 p-4 rounded-xl">
+                <p class="text-sm text-gray-600 mb-1">الفئة 3 (التفصيلية)</p>
+                <p class="text-lg font-semibold text-gray-800">${asset.category3 || '-'}</p>
             </div>
             <div class="bg-gray-50 p-4 rounded-xl">
                 <p class="text-sm text-gray-600 mb-1">الرقم التسلسلي</p>
@@ -1475,6 +1621,10 @@ function viewAssetDetails(assetId) {
                 <p class="text-lg font-semibold text-purple-800">${asset.inventoryPerson || '-'}</p>
                 ${asset.lastInventoryDate ? `<p class="text-xs text-purple-500 mt-1">آخر جرد: ${asset.lastInventoryDate}</p>` : ''}
             </div>
+            <div class="bg-cyan-50 p-4 rounded-xl md:col-span-2 border border-cyan-200">
+                <p class="text-sm text-cyan-600 mb-1"><i class="fas fa-cogs ml-1"></i>البيانات الفنية</p>
+                <p class="text-base text-gray-800">${asset.technicalData || 'لا توجد بيانات فنية'}</p>
+            </div>
             <div class="bg-gray-50 p-4 rounded-xl md:col-span-2">
                 <p class="text-sm text-gray-600 mb-1">ملاحظات</p>
                 <p class="text-base text-gray-800">${asset.notes || 'لا توجد ملاحظات'}</p>
@@ -1520,6 +1670,9 @@ async function deleteAsset(assetId) {
         // Delete from local IndexedDB
         await dbDelete(STORES.assets, assetId);
         
+        // Get asset info before removing
+        const deletedAsset = APP_STATE.assets.find(a => a.id === assetId);
+        
         // Remove from app state
         APP_STATE.assets = APP_STATE.assets.filter(a => a.id !== assetId);
         
@@ -1532,6 +1685,11 @@ async function deleteAsset(assetId) {
             }
         } else {
             await addToSyncQueue('delete', 'assets', { id: assetId });
+        }
+        
+        // Log activity
+        if (deletedAsset) {
+            await logActivity('حذف أصل', 'asset', `${deletedAsset.code} - ${deletedAsset.name}`);
         }
         
         showToast('تم حذف الأصل بنجاح', 'success');
@@ -2142,9 +2300,22 @@ function renderInventoryLogs() {
                 </span>
             </td>
             <td class="py-4 px-4">
-                <button onclick="viewInventoryDetails('${log.id}')" class="action-btn view">
-                    <i class="fas fa-eye"></i>
-                </button>
+                <div class="flex items-center justify-center gap-2">
+                    <button onclick="viewInventoryDetails('${log.id}')" class="action-btn view" title="عرض">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button onclick="editInventoryLog('${log.id}')" class="action-btn edit" title="تعديل" ${log.status === 'مكتمل' ? 'disabled' : ''}>
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    ${log.status !== 'مكتمل' ? `
+                        <button onclick="completeInventoryLog('${log.id}')" class="action-btn" title="إكمال" style="background: #10b981; color: white;">
+                            <i class="fas fa-check"></i>
+                        </button>
+                    ` : ''}
+                    <button onclick="deleteInventoryLog('${log.id}')" class="action-btn delete" title="حذف">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
             </td>
         </tr>
     `).join('');
@@ -3576,3 +3747,792 @@ function exportReportToExcel(reportType) {
     
     showToast('تم تصدير التقرير بنجاح', 'success');
 }
+
+// === Asset Names Management ===
+function renderAssetNamesList() {
+    const list = document.getElementById('assetNamesList');
+    if (!list) return;
+    
+    list.innerHTML = APP_STATE.assetNames.map(name => `
+        <div class="flex items-center justify-between bg-blue-50 p-3 rounded-lg">
+            <span class="text-gray-700"><i class="fas fa-box ml-2 text-blue-600"></i>${name}</span>
+            <button onclick="removeAssetName('${name}')" class="text-red-600 hover:bg-red-100 p-2 rounded-lg">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+function addAssetName() {
+    const input = document.getElementById('newAssetName');
+    const name = input.value.trim();
+    
+    if (!name) {
+        showToast('يرجى إدخال اسم الأصل', 'warning');
+        return;
+    }
+    
+    if (APP_STATE.assetNames.includes(name)) {
+        showToast('هذا الاسم موجود بالفعل', 'warning');
+        return;
+    }
+    
+    APP_STATE.assetNames.push(name);
+    input.value = '';
+    saveSettings();
+    renderAssetNamesList();
+    populateFilters();
+    showToast('تم إضافة اسم الأصل بنجاح', 'success');
+}
+
+function removeAssetName(name) {
+    if (!confirm(`هل أنت متأكد من حذف "${name}"؟`)) return;
+    
+    APP_STATE.assetNames = APP_STATE.assetNames.filter(n => n !== name);
+    saveSettings();
+    renderAssetNamesList();
+    showToast('تم حذف اسم الأصل', 'success');
+}
+
+// === Supplier Management ===
+function renderSuppliersList() {
+    const list = document.getElementById('suppliersList');
+    if (!list) return;
+    
+    list.innerHTML = APP_STATE.suppliers.map(supplier => `
+        <div class="flex items-center justify-between bg-orange-50 p-3 rounded-lg">
+            <span class="text-gray-700"><i class="fas fa-truck ml-2 text-orange-600"></i>${supplier}</span>
+            <button onclick="removeSupplier('${supplier}')" class="text-red-600 hover:bg-red-100 p-2 rounded-lg">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+function addSupplier() {
+    const input = document.getElementById('newSupplier');
+    const supplier = input.value.trim();
+    
+    if (!supplier) {
+        showToast('يرجى إدخال اسم المورد', 'warning');
+        return;
+    }
+    
+    if (APP_STATE.suppliers.includes(supplier)) {
+        showToast('هذا المورد موجود بالفعل', 'warning');
+        return;
+    }
+    
+    APP_STATE.suppliers.push(supplier);
+    input.value = '';
+    saveSettings();
+    renderSuppliersList();
+    populateFilters();
+    showToast('تم إضافة المورد بنجاح', 'success');
+}
+
+function removeSupplier(supplier) {
+    if (!confirm(`هل أنت متأكد من حذف "${supplier}"؟`)) return;
+    
+    APP_STATE.suppliers = APP_STATE.suppliers.filter(s => s !== supplier);
+    saveSettings();
+    renderSuppliersList();
+    showToast('تم حذف المورد', 'success');
+}
+
+// === Categories 2 & 3 Management ===
+function renderCategories2List() {
+    const list = document.getElementById('categories2List');
+    if (!list) return;
+    
+    list.innerHTML = APP_STATE.categories2.map(cat => `
+        <div class="flex items-center justify-between bg-indigo-50 p-3 rounded-lg">
+            <span class="text-gray-700"><i class="fas fa-layer-group ml-2 text-indigo-600"></i>${cat}</span>
+            <button onclick="removeCategory2('${cat}')" class="text-red-600 hover:bg-red-100 p-2 rounded-lg">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+function addCategory2() {
+    const input = document.getElementById('newCategory2');
+    const category = input.value.trim();
+    
+    if (!category) {
+        showToast('يرجى إدخال الفئة', 'warning');
+        return;
+    }
+    
+    if (APP_STATE.categories2.includes(category)) {
+        showToast('هذه الفئة موجودة بالفعل', 'warning');
+        return;
+    }
+    
+    APP_STATE.categories2.push(category);
+    input.value = '';
+    saveSettings();
+    renderCategories2List();
+    populateFilters();
+    showToast('تم إضافة الفئة 2 بنجاح', 'success');
+}
+
+function removeCategory2(category) {
+    if (!confirm(`هل أنت متأكد من حذف "${category}"؟`)) return;
+    
+    APP_STATE.categories2 = APP_STATE.categories2.filter(c => c !== category);
+    saveSettings();
+    renderCategories2List();
+    showToast('تم حذف الفئة', 'success');
+}
+
+function renderCategories3List() {
+    const list = document.getElementById('categories3List');
+    if (!list) return;
+    
+    list.innerHTML = APP_STATE.categories3.map(cat => `
+        <div class="flex items-center justify-between bg-pink-50 p-3 rounded-lg">
+            <span class="text-gray-700"><i class="fas fa-tags ml-2 text-pink-600"></i>${cat}</span>
+            <button onclick="removeCategory3('${cat}')" class="text-red-600 hover:bg-red-100 p-2 rounded-lg">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+function addCategory3() {
+    const input = document.getElementById('newCategory3');
+    const category = input.value.trim();
+    
+    if (!category) {
+        showToast('يرجى إدخال الفئة', 'warning');
+        return;
+    }
+    
+    if (APP_STATE.categories3.includes(category)) {
+        showToast('هذه الفئة موجودة بالفعل', 'warning');
+        return;
+    }
+    
+    APP_STATE.categories3.push(category);
+    input.value = '';
+    saveSettings();
+    renderCategories3List();
+    populateFilters();
+    showToast('تم إضافة الفئة 3 بنجاح', 'success');
+}
+
+function removeCategory3(category) {
+    if (!confirm(`هل أنت متأكد من حذف "${category}"؟`)) return;
+    
+    APP_STATE.categories3 = APP_STATE.categories3.filter(c => c !== category);
+    saveSettings();
+    renderCategories3List();
+    showToast('تم حذف الفئة', 'success');
+}
+
+// === Asset Locations Management ===
+async function loadAssetLocations() {
+    try {
+        APP_STATE.assetLocations = await dbGetAll(STORES.assetLocations);
+    } catch (error) {
+        console.error('Error loading asset locations:', error);
+        APP_STATE.assetLocations = [];
+    }
+}
+
+function renderAssetLocationsPage() {
+    const grid = document.getElementById('assetLocationsGrid');
+    if (!grid) return;
+    
+    grid.innerHTML = APP_STATE.assetLocations.map(loc => {
+        const assetCount = APP_STATE.assets.filter(a => a.location === loc.name).length;
+        
+        return `
+            <div class="bg-white rounded-2xl shadow-lg p-6 border-r-4 border-gov-green">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="bg-green-100 p-3 rounded-xl">
+                        <i class="fas fa-map-marker-alt text-2xl text-gov-green"></i>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="editAssetLocation('${loc.id}')" class="p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="deleteAssetLocation('${loc.id}')" class="p-2 text-red-600 hover:bg-red-100 rounded-lg">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                <h4 class="text-lg font-bold text-gray-800 mb-2">${loc.name}</h4>
+                <div class="space-y-2 text-sm text-gray-600">
+                    <p><i class="fas fa-building ml-2 text-gray-400"></i>${loc.building || 'غير محدد'}</p>
+                    <p><i class="fas fa-layer-group ml-2 text-gray-400"></i>${loc.floor || 'غير محدد'}</p>
+                    <p><i class="fas fa-boxes ml-2 text-gray-400"></i>${assetCount} أصل</p>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    // Update location count in dashboard
+    const locCountEl = document.getElementById('totalLocations');
+    if (locCountEl) {
+        locCountEl.textContent = APP_STATE.assetLocations.length;
+    }
+}
+
+function openAssetLocationModal(locId = null) {
+    const modal = document.getElementById('assetLocationModal');
+    const form = document.getElementById('assetLocationForm');
+    const title = document.getElementById('assetLocationModalTitle');
+    
+    form.reset();
+    
+    if (locId) {
+        const loc = APP_STATE.assetLocations.find(l => l.id === locId);
+        if (loc) {
+            title.textContent = 'تعديل الموقع';
+            document.getElementById('assetLocationId').value = loc.id;
+            document.getElementById('assetLocationName').value = loc.name || '';
+            document.getElementById('assetLocationBuilding').value = loc.building || '';
+            document.getElementById('assetLocationFloor').value = loc.floor || '';
+            document.getElementById('assetLocationRoom').value = loc.room || '';
+            document.getElementById('assetLocationDescription').value = loc.description || '';
+        }
+    } else {
+        title.textContent = 'إضافة موقع جديد';
+        document.getElementById('assetLocationId').value = '';
+    }
+    
+    modal.classList.remove('hidden');
+}
+
+function closeAssetLocationModal() {
+    document.getElementById('assetLocationModal').classList.add('hidden');
+}
+
+async function handleAssetLocationSubmit(e) {
+    e.preventDefault();
+    showLoading();
+    
+    const locId = document.getElementById('assetLocationId').value;
+    const isNew = !locId;
+    const finalId = isNew ? generateId() : locId;
+    
+    const locationData = {
+        id: finalId,
+        name: document.getElementById('assetLocationName').value,
+        building: document.getElementById('assetLocationBuilding').value,
+        floor: document.getElementById('assetLocationFloor').value,
+        room: document.getElementById('assetLocationRoom').value,
+        description: document.getElementById('assetLocationDescription').value,
+        updatedAt: Date.now()
+    };
+    
+    try {
+        await dbPut(STORES.assetLocations, locationData);
+        
+        if (isNew) {
+            APP_STATE.assetLocations.push(locationData);
+            // Add to locations array for dropdowns
+            if (!APP_STATE.locations.includes(locationData.name)) {
+                APP_STATE.locations.push(locationData.name);
+                saveSettings();
+            }
+        } else {
+            const index = APP_STATE.assetLocations.findIndex(l => l.id === locId);
+            if (index !== -1) {
+                APP_STATE.assetLocations[index] = locationData;
+            }
+        }
+        
+        // Log activity
+        await logActivity(isNew ? 'إضافة موقع' : 'تعديل موقع', 'location', locationData.name);
+        
+        showToast(isNew ? 'تم إضافة الموقع بنجاح' : 'تم تحديث الموقع بنجاح', 'success');
+        
+        closeAssetLocationModal();
+        renderAssetLocationsPage();
+        populateFilters();
+        updateDashboard();
+        
+    } catch (error) {
+        console.error('Error saving location:', error);
+        showToast('حدث خطأ أثناء حفظ الموقع', 'error');
+    }
+    
+    hideLoading();
+}
+
+function editAssetLocation(locId) {
+    openAssetLocationModal(locId);
+}
+
+async function deleteAssetLocation(locId) {
+    if (!confirm('هل أنت متأكد من حذف هذا الموقع؟')) return;
+    
+    showLoading();
+    
+    try {
+        const loc = APP_STATE.assetLocations.find(l => l.id === locId);
+        await dbDelete(STORES.assetLocations, locId);
+        APP_STATE.assetLocations = APP_STATE.assetLocations.filter(l => l.id !== locId);
+        
+        // Log activity
+        if (loc) {
+            await logActivity('حذف موقع', 'location', loc.name);
+        }
+        
+        showToast('تم حذف الموقع بنجاح', 'success');
+        
+        renderAssetLocationsPage();
+        updateDashboard();
+        
+    } catch (error) {
+        console.error('Error deleting location:', error);
+        showToast('حدث خطأ أثناء حذف الموقع', 'error');
+    }
+    
+    hideLoading();
+}
+
+// === Activity Log Functions ===
+async function logActivity(action, type, details) {
+    const activity = {
+        id: generateId(),
+        action: action,
+        type: type,
+        details: details,
+        user: APP_STATE.inventoryPerson || 'مستخدم غير معروف',
+        timestamp: Date.now()
+    };
+    
+    try {
+        await dbPut(STORES.activityLogs, activity);
+        APP_STATE.activityLogs.push(activity);
+    } catch (error) {
+        console.error('Error logging activity:', error);
+    }
+}
+
+async function loadActivityLogs() {
+    try {
+        APP_STATE.activityLogs = await dbGetAll(STORES.activityLogs);
+        // Sort by timestamp descending
+        APP_STATE.activityLogs.sort((a, b) => b.timestamp - a.timestamp);
+    } catch (error) {
+        console.error('Error loading activity logs:', error);
+        APP_STATE.activityLogs = [];
+    }
+}
+
+function renderActivityLogs() {
+    const container = document.getElementById('activityLogsList');
+    if (!container) return;
+    
+    // Filter last month
+    const oneMonthAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+    const recentLogs = APP_STATE.activityLogs.filter(log => log.timestamp >= oneMonthAgo);
+    
+    if (recentLogs.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-8 text-gray-500">
+                <i class="fas fa-history text-4xl mb-3 opacity-50"></i>
+                <p>لا توجد أنشطة في آخر شهر</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = recentLogs.slice(0, 50).map(log => {
+        const date = new Date(log.timestamp);
+        const iconClass = getActivityIcon(log.type);
+        const colorClass = getActivityColor(log.type);
+        
+        return `
+            <div class="flex items-start gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                <div class="p-2 rounded-lg ${colorClass}">
+                    <i class="fas ${iconClass}"></i>
+                </div>
+                <div class="flex-1">
+                    <p class="font-semibold text-gray-800">${log.action}</p>
+                    <p class="text-sm text-gray-600">${log.details}</p>
+                    <div class="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                        <span><i class="fas fa-user ml-1"></i>${log.user}</span>
+                        <span><i class="fas fa-clock ml-1"></i>${formatDateTime(date)}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function getActivityIcon(type) {
+    const icons = {
+        'asset': 'fa-box',
+        'department': 'fa-building',
+        'location': 'fa-map-marker-alt',
+        'inventory': 'fa-clipboard-check',
+        'maintenance': 'fa-wrench',
+        'settings': 'fa-cog'
+    };
+    return icons[type] || 'fa-history';
+}
+
+function getActivityColor(type) {
+    const colors = {
+        'asset': 'bg-blue-100 text-blue-600',
+        'department': 'bg-amber-100 text-amber-600',
+        'location': 'bg-green-100 text-green-600',
+        'inventory': 'bg-purple-100 text-purple-600',
+        'maintenance': 'bg-orange-100 text-orange-600',
+        'settings': 'bg-gray-100 text-gray-600'
+    };
+    return colors[type] || 'bg-gray-100 text-gray-600';
+}
+
+// === Inventory Operations Edit/Delete ===
+function editInventoryLog(logId) {
+    const log = APP_STATE.inventoryLogs.find(l => l.id === logId);
+    if (!log) return;
+    
+    document.getElementById('inventoryName').value = log.name;
+    document.getElementById('inventoryDepartment').value = log.department || '';
+    document.getElementById('inventoryDate').value = log.date;
+    
+    // Store the ID for editing
+    document.getElementById('inventoryForm').dataset.editId = logId;
+    
+    showToast('يمكنك تعديل البيانات ثم الضغط على بدء الجرد للحفظ', 'info');
+}
+
+async function deleteInventoryLog(logId) {
+    if (!confirm('هل أنت متأكد من حذف عملية الجرد هذه؟')) return;
+    
+    showLoading();
+    
+    try {
+        await dbDelete(STORES.inventoryLogs, logId);
+        APP_STATE.inventoryLogs = APP_STATE.inventoryLogs.filter(l => l.id !== logId);
+        
+        // Log activity
+        await logActivity('حذف عملية جرد', 'inventory', `حذف الجرد رقم ${logId}`);
+        
+        showToast('تم حذف عملية الجرد بنجاح', 'success');
+        renderInventoryLogs();
+        
+    } catch (error) {
+        console.error('Error deleting inventory log:', error);
+        showToast('حدث خطأ أثناء الحذف', 'error');
+    }
+    
+    hideLoading();
+}
+
+async function completeInventoryLog(logId) {
+    const log = APP_STATE.inventoryLogs.find(l => l.id === logId);
+    if (!log) return;
+    
+    showLoading();
+    
+    try {
+        log.status = 'مكتمل';
+        log.completedAt = Date.now();
+        log.updatedAt = Date.now();
+        
+        await dbPut(STORES.inventoryLogs, log);
+        
+        // Log activity
+        await logActivity('إكمال عملية جرد', 'inventory', log.name);
+        
+        showToast('تم إكمال عملية الجرد بنجاح', 'success');
+        renderInventoryLogs();
+        
+    } catch (error) {
+        console.error('Error completing inventory log:', error);
+        showToast('حدث خطأ', 'error');
+    }
+    
+    hideLoading();
+}
+
+// === Asset Performance Indicator ===
+function calculateAssetPerformance() {
+    const totalAssets = APP_STATE.assets.length;
+    if (totalAssets === 0) return { score: 0, excellent: 0, good: 0, acceptable: 0, maintenance: 0, damaged: 0 };
+    
+    const excellent = APP_STATE.assets.filter(a => a.condition === 'ممتاز').length;
+    const good = APP_STATE.assets.filter(a => a.condition === 'جيد').length;
+    const acceptable = APP_STATE.assets.filter(a => a.condition === 'مقبول').length;
+    const maintenance = APP_STATE.assets.filter(a => a.condition === 'يحتاج صيانة').length;
+    const damaged = APP_STATE.assets.filter(a => a.condition === 'تالف').length;
+    
+    // Calculate weighted score (100 = all excellent, 0 = all damaged)
+    const score = Math.round(
+        ((excellent * 100) + (good * 75) + (acceptable * 50) + (maintenance * 25) + (damaged * 0)) / totalAssets
+    );
+    
+    return { score, excellent, good, acceptable, maintenance, damaged, total: totalAssets };
+}
+
+function renderAssetPerformanceIndicator() {
+    const container = document.getElementById('assetPerformanceIndicator');
+    if (!container) return;
+    
+    const performance = calculateAssetPerformance();
+    const scoreColor = performance.score >= 75 ? 'text-green-600' : 
+                       performance.score >= 50 ? 'text-yellow-600' : 
+                       performance.score >= 25 ? 'text-orange-600' : 'text-red-600';
+    const bgColor = performance.score >= 75 ? 'bg-green-500' : 
+                    performance.score >= 50 ? 'bg-yellow-500' : 
+                    performance.score >= 25 ? 'bg-orange-500' : 'bg-red-500';
+    
+    container.innerHTML = `
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <p class="text-gray-600 text-sm">مؤشر أداء الأصول</p>
+                <p class="text-4xl font-bold ${scoreColor}">${performance.score}%</p>
+            </div>
+            <div class="w-20 h-20 relative">
+                <svg class="transform -rotate-90 w-20 h-20">
+                    <circle cx="40" cy="40" r="35" stroke="#e5e7eb" stroke-width="8" fill="none"/>
+                    <circle cx="40" cy="40" r="35" stroke="currentColor" stroke-width="8" fill="none"
+                        stroke-dasharray="${2 * Math.PI * 35}"
+                        stroke-dashoffset="${2 * Math.PI * 35 * (1 - performance.score / 100)}"
+                        class="${scoreColor}"/>
+                </svg>
+                <div class="absolute inset-0 flex items-center justify-center">
+                    <i class="fas fa-chart-line ${scoreColor} text-xl"></i>
+                </div>
+            </div>
+        </div>
+        <div class="space-y-2">
+            <div class="flex items-center justify-between text-sm">
+                <span class="text-gray-600">ممتاز</span>
+                <div class="flex items-center gap-2">
+                    <div class="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div class="h-full bg-green-500" style="width: ${(performance.excellent / performance.total) * 100}%"></div>
+                    </div>
+                    <span class="font-semibold text-green-600">${performance.excellent}</span>
+                </div>
+            </div>
+            <div class="flex items-center justify-between text-sm">
+                <span class="text-gray-600">جيد</span>
+                <div class="flex items-center gap-2">
+                    <div class="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div class="h-full bg-blue-500" style="width: ${(performance.good / performance.total) * 100}%"></div>
+                    </div>
+                    <span class="font-semibold text-blue-600">${performance.good}</span>
+                </div>
+            </div>
+            <div class="flex items-center justify-between text-sm">
+                <span class="text-gray-600">مقبول</span>
+                <div class="flex items-center gap-2">
+                    <div class="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div class="h-full bg-yellow-500" style="width: ${(performance.acceptable / performance.total) * 100}%"></div>
+                    </div>
+                    <span class="font-semibold text-yellow-600">${performance.acceptable}</span>
+                </div>
+            </div>
+            <div class="flex items-center justify-between text-sm">
+                <span class="text-gray-600">يحتاج صيانة</span>
+                <div class="flex items-center gap-2">
+                    <div class="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div class="h-full bg-orange-500" style="width: ${(performance.maintenance / performance.total) * 100}%"></div>
+                    </div>
+                    <span class="font-semibold text-orange-600">${performance.maintenance}</span>
+                </div>
+            </div>
+            <div class="flex items-center justify-between text-sm">
+                <span class="text-gray-600">تالف</span>
+                <div class="flex items-center gap-2">
+                    <div class="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div class="h-full bg-red-500" style="width: ${(performance.damaged / performance.total) * 100}%"></div>
+                    </div>
+                    <span class="font-semibold text-red-600">${performance.damaged}</span>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// === Add location manually when entering asset ===
+function addLocationFromAssetForm() {
+    const locationInput = document.getElementById('assetLocationCustom');
+    if (!locationInput) return;
+    
+    const newLocation = locationInput.value.trim();
+    if (!newLocation) {
+        showToast('يرجى إدخال اسم الموقع', 'warning');
+        return;
+    }
+    
+    if (APP_STATE.locations.includes(newLocation)) {
+        showToast('هذا الموقع موجود بالفعل', 'warning');
+        return;
+    }
+    
+    APP_STATE.locations.push(newLocation);
+    saveSettings();
+    populateFilters();
+    
+    // Select the new location in dropdown
+    document.getElementById('assetLocation').value = newLocation;
+    locationInput.value = '';
+    
+    showToast('تم إضافة الموقع بنجاح', 'success');
+}
+
+// Update showPage to include new pages
+const originalShowPage = showPage;
+showPage = function(pageName) {
+    // Hide all pages
+    document.querySelectorAll('.page-content').forEach(page => {
+        page.classList.add('hidden');
+    });
+    
+    // Show selected page
+    const targetPage = document.getElementById(`page-${pageName}`);
+    if (targetPage) {
+        targetPage.classList.remove('hidden');
+    }
+    
+    // Update navigation
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.classList.remove('active');
+    });
+    if (event && event.target) {
+        const navLink = event.target.closest('.nav-link');
+        if (navLink) navLink.classList.add('active');
+    }
+    
+    // Update page title
+    const titles = {
+        'dashboard': 'لوحة التحكم',
+        'assets': 'إدارة الأصول',
+        'inventory': 'عمليات الجرد',
+        'departments': 'الإدارات والأقسام',
+        'locations': 'مواقع الأصول',
+        'reports': 'التقارير',
+        'maintenance': 'الصيانة',
+        'settings': 'الإعدادات',
+        'activity': 'سجل النشاط'
+    };
+    const titleEl = document.getElementById('pageTitle');
+    if (titleEl) {
+        titleEl.textContent = titles[pageName] || pageName;
+    }
+    
+    // Close mobile sidebar
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) sidebar.classList.remove('open');
+    
+    // Page-specific actions
+    if (pageName === 'assets') {
+        renderAssetsTable();
+    } else if (pageName === 'departments') {
+        renderDepartments();
+    } else if (pageName === 'locations') {
+        renderAssetLocationsPage();
+    } else if (pageName === 'maintenance') {
+        renderMaintenanceTable();
+        updateMaintenanceStats();
+    } else if (pageName === 'settings') {
+        renderCategoriesList();
+        renderCategories2List();
+        renderCategories3List();
+        renderLocationsList();
+        renderAssigneesList();
+        renderAssetNamesList();
+        renderSuppliersList();
+        renderStorageInfo();
+    } else if (pageName === 'inventory') {
+        renderInventoryLogs();
+    } else if (pageName === 'activity') {
+        renderActivityLogs();
+    } else if (pageName === 'dashboard') {
+        renderAssetPerformanceIndicator();
+    }
+};
+
+// Update dashboard to include new stats
+const originalUpdateDashboard = updateDashboard;
+updateDashboard = function() {
+    originalUpdateDashboard();
+    
+    // Update location count
+    const locCountEl = document.getElementById('totalLocations');
+    if (locCountEl) {
+        locCountEl.textContent = APP_STATE.assetLocations.length || APP_STATE.locations.length;
+    }
+    
+    // Render performance indicator
+    renderAssetPerformanceIndicator();
+};
+
+// Initialize new data on app start
+const originalInitializeApp = initializeApp;
+initializeApp = async function() {
+    showLoading();
+    
+    try {
+        // Initialize database
+        await initDatabase();
+        console.log('Database initialized');
+        
+        // Load settings
+        await loadSettings();
+        
+        // Load activity logs
+        await loadActivityLogs();
+        
+        // Load asset locations
+        await loadAssetLocations();
+        
+        // Set current date
+        const dateEl = document.getElementById('currentDate');
+        if (dateEl) {
+            dateEl.textContent = new Date().toLocaleDateString('ar-SA', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+        
+        // Initialize event listeners
+        initializeEventListeners();
+        
+        // Setup online/offline handlers
+        setupNetworkHandlers();
+        
+        // Load data (from local first, then try to sync)
+        await loadAllData();
+        
+        // Initialize charts
+        initializeCharts();
+        
+        // Populate filter dropdowns
+        populateFilters();
+        
+        // Update dashboard
+        updateDashboard();
+        
+        // Check for unsaved data
+        checkForUnsavedData();
+        
+        // Register Service Worker
+        registerServiceWorker();
+        
+        // Initialize asset location form handler
+        const locForm = document.getElementById('assetLocationForm');
+        if (locForm) {
+            locForm.addEventListener('submit', handleAssetLocationSubmit);
+        }
+        
+    } catch (error) {
+        console.error('Initialization error:', error);
+        showToast('حدث خطأ أثناء تهيئة التطبيق', 'error');
+    }
+    
+    hideLoading();
+};

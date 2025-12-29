@@ -3,7 +3,7 @@
  * Enables offline functionality and caching
  */
 
-const CACHE_NAME = 'asset-inventory-v2';
+const CACHE_NAME = 'asset-inventory-v3';
 const OFFLINE_URL = 'offline.html';
 
 // Assets to cache immediately

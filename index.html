@@ -109,6 +109,14 @@
                 <i class="fas fa-sitemap w-6"></i>
                 <span>الإدارات والأقسام</span>
             </a>
+            <a href="#" onclick="showPage('locations')" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 hover:bg-white/10">
+                <i class="fas fa-map-marker-alt w-6"></i>
+                <span>مواقع الأصول</span>
+            </a>
+            <a href="#" onclick="showPage('activity')" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 hover:bg-white/10">
+                <i class="fas fa-history w-6"></i>
+                <span>سجل النشاط</span>
+            </a>
             <a href="#" onclick="showPage('reports')" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 hover:bg-white/10">
                 <i class="fas fa-file-chart-column w-6"></i>
                 <span>التقارير</span>
@@ -195,7 +203,7 @@
         <!-- Dashboard Page -->
         <div id="page-dashboard" class="page-content p-6">
             <!-- Stats Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
                 <div class="stats-card bg-white rounded-2xl shadow-lg p-6 border-r-4 border-gov-blue">
                     <div class="flex items-center justify-between">
                         <div>
@@ -247,21 +255,51 @@
                         </div>
                     </div>
                 </div>
+                
+                <div class="stats-card bg-white rounded-2xl shadow-lg p-6 border-r-4 border-teal-500">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600 text-sm mb-1">المواقع</p>
+                            <p class="text-3xl font-bold text-gray-800" id="totalLocations">0</p>
+                            <p class="text-xs text-teal-600 mt-1"><i class="fas fa-map-marker-alt"></i> موقع مسجل</p>
+                        </div>
+                        <div class="bg-teal-100 p-4 rounded-xl">
+                            <i class="fas fa-map-marker-alt text-2xl text-teal-600"></i>
+                        </div>
+                    </div>
+                </div>
             </div>
             
-            <!-- Charts Section -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <!-- Asset Performance Indicator -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
                 <div class="bg-white rounded-2xl shadow-lg p-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fas fa-chart-line ml-2 text-gov-blue"></i>مؤشر أداء الأصول</h3>
+                    <div id="assetPerformanceIndicator">
+                        <!-- Filled by JS -->
+                    </div>
+                </div>
+                
+                <div class="lg:col-span-2 bg-white rounded-2xl shadow-lg p-6">
                     <h3 class="text-lg font-bold text-gray-800 mb-4">توزيع الأصول حسب الفئة</h3>
                     <div style="height: 300px;">
                         <canvas id="categoryChart"></canvas>
                     </div>
                 </div>
-                
+            </div>
+            
+            <!-- Charts Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 <div class="bg-white rounded-2xl shadow-lg p-6">
                     <h3 class="text-lg font-bold text-gray-800 mb-4">حالة الأصول</h3>
                     <div style="height: 300px;">
                         <canvas id="conditionChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-2xl shadow-lg p-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">توزيع الأصول حسب الإدارات</h3>
+                    <div style="height: 300px;">
+                        <canvas id="departmentChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -454,7 +492,7 @@
                             </tr>
                         </thead>
                         <tbody id="inventoryLogTable">
-                            <!-- Filled by JS -->
+                            <!-- Filled by JS - Now includes edit/delete buttons -->
                         </tbody>
                     </table>
                 </div>
@@ -473,6 +511,34 @@
             
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="departmentsGrid">
                 <!-- Filled by JS -->
+            </div>
+        </div>
+        
+        <!-- Asset Locations Page -->
+        <div id="page-locations" class="page-content p-6 hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-gray-800"><i class="fas fa-map-marker-alt ml-2 text-gov-green"></i>إدارة مواقع الأصول</h3>
+                <button onclick="openAssetLocationModal()" class="bg-gov-green text-white px-5 py-3 rounded-xl flex items-center gap-2 hover:bg-green-700 transition-colors">
+                    <i class="fas fa-plus"></i>
+                    إضافة موقع جديد
+                </button>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" id="assetLocationsGrid">
+                <!-- Filled by JS -->
+            </div>
+        </div>
+        
+        <!-- Activity Log Page -->
+        <div id="page-activity" class="page-content p-6 hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-gray-800"><i class="fas fa-history ml-2 text-indigo-600"></i>سجل التعديلات والإضافات (آخر 30 يوم)</h3>
+            </div>
+            
+            <div class="bg-white rounded-2xl shadow-lg p-6">
+                <div class="space-y-4" id="activityLogsList">
+                    <!-- Filled by JS -->
+                </div>
             </div>
         </div>
         
@@ -634,12 +700,12 @@
                 </div>
                 
                 <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
-                    <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fas fa-tags ml-2 text-gov-blue"></i>إدارة الفئات</h3>
+                    <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fas fa-tags ml-2 text-gov-blue"></i>إدارة الفئة 1 (الرئيسية)</h3>
                     <div id="categoriesList" class="space-y-2 mb-4 max-h-48 overflow-y-auto">
                         <!-- Filled by JS -->
                     </div>
                     <div class="flex gap-2 mb-4">
-                        <input type="text" id="newCategory" placeholder="فئة جديدة..." class="flex-1 px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                        <input type="text" id="newCategory" placeholder="فئة رئيسية جديدة..." class="flex-1 px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light">
                         <button onclick="addCategory()" class="bg-gov-blue text-white px-6 py-2 rounded-xl hover:bg-gov-blue-light transition-colors">
                             <i class="fas fa-plus"></i>
                         </button>
@@ -651,6 +717,58 @@
                             استيراد الفئات من Excel
                         </span>
                     </label>
+                </div>
+                
+                <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fas fa-layer-group ml-2 text-indigo-600"></i>إدارة الفئة 2 (الفرعية)</h3>
+                    <div id="categories2List" class="space-y-2 mb-4 max-h-48 overflow-y-auto">
+                        <!-- Filled by JS -->
+                    </div>
+                    <div class="flex gap-2 mb-4">
+                        <input type="text" id="newCategory2" placeholder="فئة فرعية جديدة..." class="flex-1 px-4 py-2 border rounded-xl focus:ring-2 focus:ring-indigo-500">
+                        <button onclick="addCategory2()" class="bg-indigo-600 text-white px-6 py-2 rounded-xl hover:bg-indigo-700 transition-colors">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fas fa-tags ml-2 text-pink-600"></i>إدارة الفئة 3 (التفصيلية)</h3>
+                    <div id="categories3List" class="space-y-2 mb-4 max-h-48 overflow-y-auto">
+                        <!-- Filled by JS -->
+                    </div>
+                    <div class="flex gap-2 mb-4">
+                        <input type="text" id="newCategory3" placeholder="فئة تفصيلية جديدة..." class="flex-1 px-4 py-2 border rounded-xl focus:ring-2 focus:ring-pink-500">
+                        <button onclick="addCategory3()" class="bg-pink-600 text-white px-6 py-2 rounded-xl hover:bg-pink-700 transition-colors">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fas fa-box ml-2 text-blue-600"></i>إدارة أسماء الأصول</h3>
+                    <div id="assetNamesList" class="space-y-2 mb-4 max-h-48 overflow-y-auto">
+                        <!-- Filled by JS -->
+                    </div>
+                    <div class="flex gap-2 mb-4">
+                        <input type="text" id="newAssetName" placeholder="اسم أصل جديد..." class="flex-1 px-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500">
+                        <button onclick="addAssetName()" class="bg-blue-600 text-white px-6 py-2 rounded-xl hover:bg-blue-700 transition-colors">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fas fa-truck ml-2 text-orange-600"></i>إدارة الموردين</h3>
+                    <div id="suppliersList" class="space-y-2 mb-4 max-h-48 overflow-y-auto">
+                        <!-- Filled by JS -->
+                    </div>
+                    <div class="flex gap-2 mb-4">
+                        <input type="text" id="newSupplier" placeholder="مورد جديد..." class="flex-1 px-4 py-2 border rounded-xl focus:ring-2 focus:ring-orange-500">
+                        <button onclick="addSupplier()" class="bg-orange-600 text-white px-6 py-2 rounded-xl hover:bg-orange-700 transition-colors">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
                 </div>
                 
                 <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
@@ -749,7 +867,12 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">اسم الأصل <span class="text-red-500">*</span></label>
-                                <input type="text" id="assetName" name="name" required class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                                <div class="flex gap-2">
+                                    <select id="assetNameSelect" class="flex-1 px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light" onchange="document.getElementById('assetName').value = this.value">
+                                        <option value="">-- اختر أو أدخل اسم جديد --</option>
+                                    </select>
+                                    <input type="text" id="assetName" name="name" required class="flex-1 px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light" placeholder="أو أدخل اسم جديد">
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">كود الأصل <span class="text-red-500">*</span></label>
@@ -764,9 +887,21 @@
                                 </div>
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">الفئة</label>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">الفئة 1 (الرئيسية)</label>
                                 <select id="assetCategory" name="category" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light">
                                     <!-- Filled by JS -->
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">الفئة 2 (الفرعية)</label>
+                                <select id="assetCategory2" name="category2" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                                    <option value="">-- اختر الفئة الفرعية --</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">الفئة 3 (التفصيلية)</label>
+                                <select id="assetCategory3" name="category3" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                                    <option value="">-- اختر الفئة التفصيلية --</option>
                                 </select>
                             </div>
                             <div>
@@ -793,9 +928,17 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">الموقع التفصيلي</label>
-                                <select id="assetLocation" name="location" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light">
-                                    <option value="">-- اختر الموقع --</option>
-                                </select>
+                                <div class="flex gap-2">
+                                    <select id="assetLocation" name="location" class="flex-1 px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                                        <option value="">-- اختر الموقع --</option>
+                                    </select>
+                                </div>
+                                <div class="flex gap-2 mt-2">
+                                    <input type="text" id="assetLocationCustom" placeholder="أو أدخل موقع جديد..." class="flex-1 px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light text-sm">
+                                    <button type="button" onclick="addLocationFromAssetForm()" class="bg-gov-green text-white px-4 py-2 rounded-xl hover:bg-green-700 transition-colors text-sm">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -835,7 +978,12 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">المورد</label>
-                                <input type="text" id="assetSupplier" name="supplier" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                                <div class="flex gap-2">
+                                    <select id="assetSupplierSelect" class="flex-1 px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light" onchange="document.getElementById('assetSupplier').value = this.value">
+                                        <option value="">-- اختر أو أدخل مورد --</option>
+                                    </select>
+                                    <input type="text" id="assetSupplier" name="supplier" class="flex-1 px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light" placeholder="أو أدخل مورد جديد">
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">تاريخ انتهاء الضمان</label>
@@ -877,10 +1025,16 @@
                         </div>
                     </div>
                     
-                    <!-- Notes -->
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">ملاحظات</label>
-                        <textarea id="assetNotes" name="notes" rows="3" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light" placeholder="أي ملاحظات إضافية..."></textarea>
+                    <!-- Technical Data & Notes -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2"><i class="fas fa-cogs ml-1 text-cyan-600"></i>البيانات الفنية</label>
+                            <textarea id="assetTechnicalData" name="technicalData" rows="3" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-cyan-500" placeholder="المواصفات الفنية للأصل (الموديل، السعة، المقاسات، الطاقة...)"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">ملاحظات</label>
+                            <textarea id="assetNotes" name="notes" rows="3" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light" placeholder="أي ملاحظات إضافية..."></textarea>
+                        </div>
                     </div>
                     
                     <!-- Buttons -->
@@ -959,6 +1113,51 @@
                             حفظ
                         </button>
                         <button type="button" onclick="closeDepartmentModal()" class="flex-1 bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300 transition-colors">
+                            إلغاء
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Asset Location Modal -->
+    <div id="assetLocationModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+            <div class="bg-gradient-to-r from-gov-green to-teal-600 text-white p-6 flex items-center justify-between">
+                <h2 class="text-xl font-bold" id="assetLocationModalTitle">إضافة موقع جديد</h2>
+                <button onclick="closeAssetLocationModal()" class="hover:bg-white/20 p-2 rounded-lg transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <form id="assetLocationForm" class="space-y-4">
+                    <input type="hidden" id="assetLocationId">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">اسم الموقع <span class="text-red-500">*</span></label>
+                        <input type="text" id="assetLocationName" required class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-green" placeholder="مثال: الطابق الأول - مكتب 101">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">المبنى</label>
+                        <input type="text" id="assetLocationBuilding" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-green" placeholder="مثال: المبنى الرئيسي">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">الطابق</label>
+                        <input type="text" id="assetLocationFloor" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-green" placeholder="مثال: الطابق الثاني">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">الغرفة/المكتب</label>
+                        <input type="text" id="assetLocationRoom" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-green" placeholder="مثال: غرفة 201">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">وصف إضافي</label>
+                        <textarea id="assetLocationDescription" rows="2" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-green" placeholder="وصف تفصيلي للموقع..."></textarea>
+                    </div>
+                    <div class="flex gap-4 pt-4">
+                        <button type="submit" class="flex-1 bg-gov-green text-white py-3 rounded-xl font-semibold hover:bg-green-700 transition-colors">
+                            حفظ الموقع
+                        </button>
+                        <button type="button" onclick="closeAssetLocationModal()" class="flex-1 bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300 transition-colors">
                             إلغاء
                         </button>
                     </div>
