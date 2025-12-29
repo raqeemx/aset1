@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>غير متصل - نظام جرد الأصول</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 24px;
+            padding: 48px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+        
+        .icon {
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, #fef3c7, #fcd34d);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            font-size: 48px;
+        }
+        
+        h1 {
+            color: #1e40af;
+            font-size: 28px;
+            margin-bottom: 16px;
+        }
+        
+        p {
+            color: #64748b;
+            font-size: 16px;
+            line-height: 1.8;
+            margin-bottom: 32px;
+        }
+        
+        .features {
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 32px;
+            text-align: right;
+        }
+        
+        .features h3 {
+            color: #059669;
+            font-size: 16px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .features ul {
+            list-style: none;
+            color: #475569;
+            font-size: 14px;
+        }
+        
+        .features li {
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .features li:last-child {
+            border-bottom: none;
+        }
+        
+        .features li::before {
+            content: "✓";
+            color: #059669;
+            font-weight: bold;
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #1e40af, #3b82f6);
+            color: white;
+            padding: 14px 32px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+        }
+        
+        .status {
+            margin-top: 24px;
+            padding: 12px 24px;
+            background: #fee2e2;
+            color: #dc2626;
+            border-radius: 8px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .status.online {
+            background: #dcfce7;
+            color: #059669;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon pulse">
+            📶
+        </div>
+        
+        <h1>أنت غير متصل بالإنترنت</h1>
+        
+        <p>
+            لا تقلق! بياناتك محفوظة بأمان على جهازك.
+            <br>
+            يمكنك الاستمرار في العمل وسيتم مزامنة البيانات تلقائياً عند استعادة الاتصال.
+        </p>
+        
+        <div class="features">
+            <h3>✨ ما يمكنك فعله أثناء عدم الاتصال:</h3>
+            <ul>
+                <li>عرض جميع الأصول المخزنة محلياً</li>
+                <li>إضافة أصول جديدة</li>
+                <li>تعديل بيانات الأصول الموجودة</li>
+                <li>إجراء عمليات الجرد</li>
+                <li>إنشاء طلبات الصيانة</li>
+                <li>تصدير البيانات كنسخة احتياطية</li>
+            </ul>
+        </div>
+        
+        <button class="btn" onclick="tryReconnect()">
+            🔄 حاول الاتصال مجدداً
+        </button>
+        
+        <div class="status" id="connectionStatus">
+            ⚠️ غير متصل بالإنترنت
+        </div>
+    </div>
+    
+    <script>
+        function tryReconnect() {
+            window.location.reload();
+        }
+        
+        // Check connection status
+        function updateStatus() {
+            const statusEl = document.getElementById('connectionStatus');
+            if (navigator.onLine) {
+                statusEl.className = 'status online';
+                statusEl.innerHTML = '✅ متصل بالإنترنت - جاري إعادة التحميل...';
+                setTimeout(() => {
+                    window.location.href = '/index.html';
+                }, 1000);
+            } else {
+                statusEl.className = 'status';
+                statusEl.innerHTML = '⚠️ غير متصل بالإنترنت';
+            }
+        }
+        
+        window.addEventListener('online', updateStatus);
+        window.addEventListener('offline', updateStatus);
+        
+        // Initial check
+        updateStatus();
+    </script>
+</body>
+</html>

@@ -1,0 +1,58 @@
+{
+    "name": "نظام جرد وحصر الأصول الحكومية",
+    "short_name": "جرد الأصول",
+    "description": "نظام متكامل لإدارة وجرد وحصر الأصول في الجهات الحكومية",
+    "start_url": "/index.html",
+    "display": "standalone",
+    "orientation": "portrait-primary",
+    "background_color": "#1e40af",
+    "theme_color": "#1e40af",
+    "lang": "ar",
+    "dir": "rtl",
+    "scope": "/",
+    "icons": [
+        {
+            "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%231e40af' width='100' height='100' rx='20'/><text fill='white' font-size='50' font-family='Arial' x='50' y='65' text-anchor='middle'>📦</text></svg>",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": ["business", "productivity", "utilities"],
+    "screenshots": [],
+    "shortcuts": [
+        {
+            "name": "إضافة أصل جديد",
+            "short_name": "أصل جديد",
+            "description": "إضافة أصل جديد للنظام",
+            "url": "/index.html?action=add-asset",
+            "icons": [
+                {
+                    "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23059669' width='100' height='100' rx='20'/><text fill='white' font-size='60' x='50' y='70' text-anchor='middle'>+</text></svg>",
+                    "sizes": "96x96"
+                }
+            ]
+        },
+        {
+            "name": "عمليات الجرد",
+            "short_name": "الجرد",
+            "description": "بدء عملية جرد جديدة",
+            "url": "/index.html?page=inventory",
+            "icons": [
+                {
+                    "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23d97706' width='100' height='100' rx='20'/><text fill='white' font-size='40' x='50' y='65' text-anchor='middle'>📋</text></svg>",
+                    "sizes": "96x96"
+                }
+            ]
+        }
+    ],
+    "related_applications": [],
+    "prefer_related_applications": false,
+    "features": [
+        "Offline capable",
+        "Barcode scanning",
+        "Data export",
+        "Arabic RTL support"
+    ],
+    "handle_links": "preferred"
+}

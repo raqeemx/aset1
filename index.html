@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>نظام جرد وحصر الأصول الحكومية</title>
     
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#1e40af">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="جرد الأصول">
+    <meta name="description" content="نظام متكامل لإدارة وجرد وحصر الأصول في الجهات الحكومية">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -49,6 +59,18 @@
 </head>
 <body class="font-arabic bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 min-h-screen">
     
+    <!-- Offline Banner -->
+    <div id="offlineBanner" class="offline-banner">
+        <i class="fas fa-wifi-slash ml-2"></i>
+        أنت الآن في وضع عدم الاتصال - البيانات محفوظة محلياً
+    </div>
+    
+    <!-- Online Banner -->
+    <div id="onlineBanner" class="online-banner">
+        <i class="fas fa-wifi ml-2"></i>
+        تم استعادة الاتصال - جاري مزامنة البيانات
+    </div>
+    
     <!-- Sidebar Navigation -->
     <aside id="sidebar" class="fixed right-0 top-0 h-full w-72 bg-gradient-to-b from-gov-blue to-indigo-900 text-white z-40 transform transition-transform duration-300 lg:translate-x-0 translate-x-full">
         <div class="p-6 border-b border-white/20">
@@ -60,6 +82,13 @@
                     <h1 class="text-xl font-bold">جرد الأصول</h1>
                     <p class="text-blue-200 text-sm">الحكومية</p>
                 </div>
+            </div>
+            <!-- Sync Status -->
+            <div class="mt-4">
+                <div id="syncStatus" class="sync-status synced">
+                    <i class="fas fa-check-circle"></i> متزامن
+                </div>
+                <p id="lastSyncTime" class="last-sync"></p>
             </div>
         </div>
         
@@ -95,16 +124,28 @@
         </nav>
         
         <div class="absolute bottom-0 right-0 left-0 p-4 border-t border-white/20">
+            <!-- Inventory Person Badge -->
+            <div id="inventoryPersonBadge" class="inventory-person-badge mb-3" style="display: none;">
+                <i class="fas fa-user-check"></i>
+                <span class="inventory-person-display"></span>
+            </div>
+            
             <div class="bg-white/10 rounded-xl p-4">
                 <div class="flex items-center gap-3 mb-3">
-                    <div class="w-10 h-10 bg-gov-gold rounded-full flex items-center justify-center">
+                    <div class="w-10 h-10 bg-gov-gold rounded-full flex items-center justify-center cursor-pointer" onclick="setInventoryPerson()">
                         <i class="fas fa-user"></i>
                     </div>
                     <div>
-                        <p class="font-semibold text-sm">مدير النظام</p>
-                        <p class="text-blue-200 text-xs">admin@gov.sa</p>
+                        <p class="font-semibold text-sm">القائم بالجرد</p>
+                        <p class="text-blue-200 text-xs inventory-person-display">انقر للتعيين</p>
                     </div>
                 </div>
+                
+                <!-- PWA Install Button -->
+                <button id="pwaInstallBtn" onclick="installPWA()" class="pwa-install-btn w-full mt-2">
+                    <i class="fas fa-download"></i>
+                    تثبيت التطبيق
+                </button>
             </div>
         </div>
     </aside>
@@ -130,6 +171,11 @@
                                class="w-64 pr-10 pl-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gov-blue-light focus:border-transparent">
                         <i class="fas fa-search absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
                     </div>
+                    
+                    <!-- Sync Button -->
+                    <button onclick="forceSyncData()" class="p-2 text-gray-600 hover:bg-gray-100 rounded-xl transition-colors" title="مزامنة البيانات">
+                        <i class="fas fa-sync"></i>
+                    </button>
                     
                     <!-- Notifications -->
                     <button class="relative p-2 text-gray-600 hover:bg-gray-100 rounded-xl transition-colors">
@@ -259,7 +305,7 @@
                 <div class="flex flex-wrap items-center gap-4 mb-6">
                     <div class="flex-1 min-w-64">
                         <div class="relative">
-                            <input type="text" id="assetSearch" placeholder="البحث عن أصل (الاسم، الكود، القسم...)"
+                            <input type="text" id="assetSearch" placeholder="البحث عن أصل (الاسم، الكود، القسم، القائم بالجرد...)"
                                    class="w-full pr-10 pl-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gov-blue-light">
                             <i class="fas fa-search absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
                         </div>
@@ -529,6 +575,24 @@
         <!-- Settings Page -->
         <div id="page-settings" class="page-content p-6 hidden">
             <div class="max-w-4xl mx-auto">
+                <!-- Inventory Person Settings -->
+                <div class="bg-purple-50 border-2 border-purple-200 rounded-2xl shadow-lg p-6 mb-6">
+                    <h3 class="text-lg font-bold text-purple-800 mb-4">
+                        <i class="fas fa-user-check ml-2"></i>
+                        إعدادات القائم بالجرد
+                    </h3>
+                    <div class="flex items-center gap-4">
+                        <div class="flex-1">
+                            <p class="text-gray-600 mb-2">اسم القائم بالجرد الحالي:</p>
+                            <p class="text-xl font-bold text-purple-700 inventory-person-display">غير محدد</p>
+                        </div>
+                        <button onclick="setInventoryPerson()" class="bg-purple-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-purple-700 transition-colors">
+                            <i class="fas fa-edit ml-2"></i>
+                            تعديل
+                        </button>
+                    </div>
+                </div>
+                
                 <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
                     <h3 class="text-lg font-bold text-gray-800 mb-4">إعدادات النظام</h3>
                     <div class="space-y-6">
@@ -564,14 +628,14 @@
                     </div>
                 </div>
                 
-                <div class="bg-white rounded-2xl shadow-lg p-6">
-                    <h3 class="text-lg font-bold text-gray-800 mb-4">النسخ الاحتياطي</h3>
-                    <div class="flex gap-4">
-                        <button onclick="exportAllData()" class="flex-1 bg-gov-green text-white py-3 rounded-xl font-semibold hover:bg-green-700 transition-colors">
+                <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">النسخ الاحتياطي والاستعادة</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <button onclick="exportAllData()" class="bg-gov-green text-white py-3 rounded-xl font-semibold hover:bg-green-700 transition-colors">
                             <i class="fas fa-download ml-2"></i>
                             تصدير البيانات
                         </button>
-                        <label class="flex-1">
+                        <label class="block">
                             <input type="file" id="importFile" class="hidden" accept=".json" onchange="importData(event)">
                             <span class="block w-full bg-gov-gold text-white py-3 rounded-xl font-semibold hover:bg-amber-600 transition-colors text-center cursor-pointer">
                                 <i class="fas fa-upload ml-2"></i>
@@ -579,6 +643,23 @@
                             </span>
                         </label>
                     </div>
+                    
+                    <!-- Storage Info -->
+                    <div id="storageInfo" class="mt-4">
+                        <!-- Filled by JS -->
+                    </div>
+                </div>
+                
+                <div class="bg-red-50 border-2 border-red-200 rounded-2xl shadow-lg p-6">
+                    <h3 class="text-lg font-bold text-red-800 mb-4">
+                        <i class="fas fa-exclamation-triangle ml-2"></i>
+                        منطقة الخطر
+                    </h3>
+                    <p class="text-gray-600 mb-4">حذف جميع البيانات المحلية. لا يمكن التراجع عن هذا الإجراء.</p>
+                    <button onclick="clearAllLocalData()" class="bg-red-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-red-700 transition-colors">
+                        <i class="fas fa-trash ml-2"></i>
+                        حذف جميع البيانات المحلية
+                    </button>
                 </div>
             </div>
         </div>
@@ -693,6 +774,17 @@
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">المستخدم/المسؤول</label>
                                 <input type="text" id="assetAssignee" name="assignee" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Inventory Person -->
+                    <div class="border-b pb-4 mb-4 bg-purple-50 -mx-6 px-6 py-4">
+                        <h4 class="text-lg font-semibold text-purple-800 mb-4"><i class="fas fa-user-check ml-2"></i>بيانات الجرد</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-purple-700 mb-2">القائم بالجرد</label>
+                                <input type="text" id="assetInventoryPerson" name="inventoryPerson" class="w-full px-4 py-2 border border-purple-300 rounded-xl focus:ring-2 focus:ring-purple-500 bg-white">
                             </div>
                         </div>
                     </div>
@@ -887,6 +979,12 @@
             <i id="toastIcon" class="fas fa-check-circle text-green-400"></i>
             <span id="toastMessage">تم الحفظ بنجاح</span>
         </div>
+    </div>
+    
+    <!-- Auto Save Indicator -->
+    <div id="autoSaveIndicator" class="auto-save-indicator">
+        <i class="fas fa-save"></i>
+        تم الحفظ تلقائياً
     </div>
     
     <!-- Loading Overlay -->
