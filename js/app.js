@@ -23,12 +23,16 @@ const APP_STATE = {
     maintenance: [],
     inventoryLogs: [],
     categories: ['أثاث', 'معدات إلكترونية', 'مركبات', 'أجهزة طبية', 'معدات مكتبية', 'أجهزة كهربائية', 'أخرى'],
+    locations: ['الطابق الأول - مكتب 101', 'الطابق الثاني - غرفة 201', 'الطابق الثالث - قاعة الاجتماعات', 'المستودع', 'موقف السيارات'],
+    assignees: [],
     conditions: ['ممتاز', 'جيد', 'مقبول', 'يحتاج صيانة', 'تالف'],
     currentPage: 1,
     itemsPerPage: 10,
     selectedAsset: null,
     uploadedImages: [],
     barcodeScanner: null,
+    barcodeScannerStream: null,
+    barcodeScannerTargetField: null,
     charts: {},
     db: null,
     isOnline: navigator.onLine,
@@ -225,6 +229,16 @@ async function loadSettings() {
             APP_STATE.categories = categories.value;
         }
         
+        const locations = await dbGet(STORES.settings, 'locations');
+        if (locations && locations.value) {
+            APP_STATE.locations = locations.value;
+        }
+        
+        const assignees = await dbGet(STORES.settings, 'assignees');
+        if (assignees && assignees.value) {
+            APP_STATE.assignees = assignees.value;
+        }
+        
     } catch (error) {
         console.error('Error loading settings:', error);
     }
@@ -235,6 +249,8 @@ async function saveSettings() {
         await dbPut(STORES.settings, { key: 'inventoryPerson', value: APP_STATE.inventoryPerson });
         await dbPut(STORES.settings, { key: 'lastSync', value: APP_STATE.lastSync ? APP_STATE.lastSync.toISOString() : null });
         await dbPut(STORES.settings, { key: 'categories', value: APP_STATE.categories });
+        await dbPut(STORES.settings, { key: 'locations', value: APP_STATE.locations });
+        await dbPut(STORES.settings, { key: 'assignees', value: APP_STATE.assignees });
     } catch (error) {
         console.error('Error saving settings:', error);
     }
@@ -512,6 +528,8 @@ function showPage(pageName) {
         updateMaintenanceStats();
     } else if (pageName === 'settings') {
         renderCategoriesList();
+        renderLocationsList();
+        renderAssigneesList();
         renderStorageInfo();
     } else if (pageName === 'inventory') {
         renderInventoryLogs();
@@ -1109,6 +1127,24 @@ function populateFilters() {
         parentDepartment.innerHTML += option;
     });
     
+    // Location dropdown
+    const assetLocation = document.getElementById('assetLocation');
+    if (assetLocation) {
+        assetLocation.innerHTML = '<option value="">-- اختر الموقع --</option>';
+        APP_STATE.locations.forEach(loc => {
+            assetLocation.innerHTML += `<option value="${loc}">${loc}</option>`;
+        });
+    }
+    
+    // Assignee dropdown
+    const assetAssignee = document.getElementById('assetAssignee');
+    if (assetAssignee) {
+        assetAssignee.innerHTML = '<option value="">-- اختر المسؤول --</option>';
+        APP_STATE.assignees.forEach(assignee => {
+            assetAssignee.innerHTML += `<option value="${assignee}">${assignee}</option>`;
+        });
+    }
+    
     // Maintenance asset dropdown
     updateMaintenanceAssetDropdown();
 }
@@ -1165,7 +1201,12 @@ function renderAssetsTable() {
             <td class="py-4 px-4 text-sm text-gray-600">${asset.category}</td>
             <td class="py-4 px-4 text-sm text-gray-600">${asset.department || '-'}</td>
             <td class="py-4 px-4 text-sm text-gray-600">${asset.location || '-'}</td>
-            <td class="py-4 px-4 text-sm font-semibold text-green-600">${formatCurrency(asset.currentValue)}</td>
+            <td class="py-4 px-4">
+                <div class="flex items-center gap-2 cursor-pointer group" onclick="openQuickEditValueModal('${asset.id}')" title="انقر للتعديل السريع">
+                    <span class="text-sm font-semibold text-green-600">${formatCurrency(asset.currentValue)}</span>
+                    <i class="fas fa-edit text-xs text-gray-400 group-hover:text-gov-blue opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                </div>
+            </td>
             <td class="py-4 px-4">
                 <span class="px-3 py-1 rounded-full text-xs font-semibold ${getConditionClass(asset.condition)}">
                     ${asset.condition}
@@ -2147,6 +2188,9 @@ function generateSummaryReport(container) {
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-xl font-bold text-gray-800">تقرير ملخص الأصول</h3>
                 <div class="flex gap-2">
+                    <button onclick="exportReportToExcel('summary')" class="bg-gov-green text-white px-4 py-2 rounded-lg">
+                        <i class="fas fa-file-excel ml-2"></i>تصدير Excel
+                    </button>
                     <button onclick="printReport()" class="bg-gov-blue text-white px-4 py-2 rounded-lg">
                         <i class="fas fa-print ml-2"></i>طباعة
                     </button>
@@ -2209,9 +2253,14 @@ function generateDepreciationReport(container) {
         <div class="report-section">
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-xl font-bold text-gray-800">تقرير إهلاك الأصول</h3>
-                <button onclick="printReport()" class="bg-gov-blue text-white px-4 py-2 rounded-lg">
-                    <i class="fas fa-print ml-2"></i>طباعة
-                </button>
+                <div class="flex gap-2">
+                    <button onclick="exportReportToExcel('depreciation')" class="bg-gov-green text-white px-4 py-2 rounded-lg">
+                        <i class="fas fa-file-excel ml-2"></i>تصدير Excel
+                    </button>
+                    <button onclick="printReport()" class="bg-gov-blue text-white px-4 py-2 rounded-lg">
+                        <i class="fas fa-print ml-2"></i>طباعة
+                    </button>
+                </div>
             </div>
             
             <div class="bg-red-50 p-4 rounded-xl mb-6">
@@ -2255,9 +2304,14 @@ function generateMaintenanceReport(container) {
         <div class="report-section">
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-xl font-bold text-gray-800">تقرير الصيانة</h3>
-                <button onclick="printReport()" class="bg-gov-blue text-white px-4 py-2 rounded-lg">
-                    <i class="fas fa-print ml-2"></i>طباعة
-                </button>
+                <div class="flex gap-2">
+                    <button onclick="exportReportToExcel('maintenance')" class="bg-gov-green text-white px-4 py-2 rounded-lg">
+                        <i class="fas fa-file-excel ml-2"></i>تصدير Excel
+                    </button>
+                    <button onclick="printReport()" class="bg-gov-blue text-white px-4 py-2 rounded-lg">
+                        <i class="fas fa-print ml-2"></i>طباعة
+                    </button>
+                </div>
             </div>
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -2303,9 +2357,14 @@ function generateInventoryReport(container) {
         <div class="report-section">
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-xl font-bold text-gray-800">تقرير عمليات الجرد</h3>
-                <button onclick="printReport()" class="bg-gov-blue text-white px-4 py-2 rounded-lg">
-                    <i class="fas fa-print ml-2"></i>طباعة
-                </button>
+                <div class="flex gap-2">
+                    <button onclick="exportReportToExcel('inventory')" class="bg-gov-green text-white px-4 py-2 rounded-lg">
+                        <i class="fas fa-file-excel ml-2"></i>تصدير Excel
+                    </button>
+                    <button onclick="printReport()" class="bg-gov-blue text-white px-4 py-2 rounded-lg">
+                        <i class="fas fa-print ml-2"></i>طباعة
+                    </button>
+                </div>
             </div>
             
             <table class="w-full">
@@ -2673,6 +2732,21 @@ function handleSelectAll(e) {
     checkboxes.forEach(cb => cb.checked = e.target.checked);
 }
 
+// Toggle import menu
+function toggleImportMenu() {
+    const menu = document.getElementById('importMenu');
+    menu.classList.toggle('hidden');
+}
+
+// Close import menu when clicking outside
+document.addEventListener('click', function(e) {
+    const menu = document.getElementById('importMenu');
+    const btn = e.target.closest('[onclick*="toggleImportMenu"]');
+    if (!btn && menu && !menu.contains(e.target)) {
+        menu.classList.add('hidden');
+    }
+});
+
 function printAssetDetails() {
     window.print();
 }
@@ -2706,4 +2780,799 @@ async function installPWA() {
     if (installBtn) {
         installBtn.classList.remove('show');
     }
+}
+
+// === Location Management Functions ===
+function renderLocationsList() {
+    const list = document.getElementById('locationsList');
+    if (!list) return;
+    
+    list.innerHTML = APP_STATE.locations.map(loc => `
+        <div class="flex items-center justify-between bg-green-50 p-3 rounded-lg">
+            <span class="text-gray-700"><i class="fas fa-map-marker-alt ml-2 text-gov-green"></i>${loc}</span>
+            <button onclick="removeLocation('${loc}')" class="text-red-600 hover:bg-red-100 p-2 rounded-lg">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+function addLocation() {
+    const input = document.getElementById('newLocation');
+    const location = input.value.trim();
+    
+    if (!location) {
+        showToast('يرجى إدخال اسم الموقع', 'warning');
+        return;
+    }
+    
+    if (APP_STATE.locations.includes(location)) {
+        showToast('هذا الموقع موجود بالفعل', 'warning');
+        return;
+    }
+    
+    APP_STATE.locations.push(location);
+    input.value = '';
+    saveSettings();
+    renderLocationsList();
+    populateFilters();
+    showToast('تم إضافة الموقع بنجاح', 'success');
+}
+
+function removeLocation(location) {
+    if (!confirm(`هل أنت متأكد من حذف الموقع "${location}"؟`)) return;
+    
+    APP_STATE.locations = APP_STATE.locations.filter(l => l !== location);
+    saveSettings();
+    renderLocationsList();
+    populateFilters();
+    showToast('تم حذف الموقع', 'success');
+}
+
+// === Assignee Management Functions ===
+function renderAssigneesList() {
+    const list = document.getElementById('assigneesList');
+    if (!list) return;
+    
+    list.innerHTML = APP_STATE.assignees.map(assignee => `
+        <div class="flex items-center justify-between bg-purple-50 p-3 rounded-lg">
+            <span class="text-gray-700"><i class="fas fa-user-tie ml-2 text-purple-600"></i>${assignee}</span>
+            <button onclick="removeAssignee('${assignee}')" class="text-red-600 hover:bg-red-100 p-2 rounded-lg">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+function addAssignee() {
+    const input = document.getElementById('newAssignee');
+    const assignee = input.value.trim();
+    
+    if (!assignee) {
+        showToast('يرجى إدخال اسم المستخدم/المسؤول', 'warning');
+        return;
+    }
+    
+    if (APP_STATE.assignees.includes(assignee)) {
+        showToast('هذا المستخدم/المسؤول موجود بالفعل', 'warning');
+        return;
+    }
+    
+    APP_STATE.assignees.push(assignee);
+    input.value = '';
+    saveSettings();
+    renderAssigneesList();
+    populateFilters();
+    showToast('تم إضافة المستخدم/المسؤول بنجاح', 'success');
+}
+
+function removeAssignee(assignee) {
+    if (!confirm(`هل أنت متأكد من حذف المستخدم/المسؤول "${assignee}"؟`)) return;
+    
+    APP_STATE.assignees = APP_STATE.assignees.filter(a => a !== assignee);
+    saveSettings();
+    renderAssigneesList();
+    populateFilters();
+    showToast('تم حذف المستخدم/المسؤول', 'success');
+}
+
+// === Excel Import Functions ===
+async function importCategoriesFromExcel(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    showLoading();
+    
+    try {
+        const data = await readExcelFile(file);
+        if (data && data.length > 0) {
+            const newCategories = data.map(row => {
+                // Try to get value from first column, could be named differently
+                return row['الفئة'] || row['فئة'] || row['Category'] || row['category'] || Object.values(row)[0];
+            }).filter(cat => cat && typeof cat === 'string' && cat.trim());
+            
+            const uniqueNew = [...new Set(newCategories)].filter(cat => !APP_STATE.categories.includes(cat.trim()));
+            
+            if (uniqueNew.length > 0) {
+                APP_STATE.categories.push(...uniqueNew.map(c => c.trim()));
+                saveSettings();
+                renderCategoriesList();
+                populateFilters();
+                showToast(`تم استيراد ${uniqueNew.length} فئة جديدة`, 'success');
+            } else {
+                showToast('لا توجد فئات جديدة للاستيراد', 'info');
+            }
+        }
+    } catch (error) {
+        console.error('Error importing categories:', error);
+        showToast('حدث خطأ أثناء استيراد الفئات', 'error');
+    }
+    
+    event.target.value = '';
+    hideLoading();
+}
+
+async function importLocationsFromExcel(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    showLoading();
+    
+    try {
+        const data = await readExcelFile(file);
+        if (data && data.length > 0) {
+            const newLocations = data.map(row => {
+                return row['الموقع'] || row['موقع'] || row['Location'] || row['location'] || Object.values(row)[0];
+            }).filter(loc => loc && typeof loc === 'string' && loc.trim());
+            
+            const uniqueNew = [...new Set(newLocations)].filter(loc => !APP_STATE.locations.includes(loc.trim()));
+            
+            if (uniqueNew.length > 0) {
+                APP_STATE.locations.push(...uniqueNew.map(l => l.trim()));
+                saveSettings();
+                renderLocationsList();
+                populateFilters();
+                showToast(`تم استيراد ${uniqueNew.length} موقع جديد`, 'success');
+            } else {
+                showToast('لا توجد مواقع جديدة للاستيراد', 'info');
+            }
+        }
+    } catch (error) {
+        console.error('Error importing locations:', error);
+        showToast('حدث خطأ أثناء استيراد المواقع', 'error');
+    }
+    
+    event.target.value = '';
+    hideLoading();
+}
+
+async function importAssigneesFromExcel(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    showLoading();
+    
+    try {
+        const data = await readExcelFile(file);
+        if (data && data.length > 0) {
+            const newAssignees = data.map(row => {
+                return row['المستخدم'] || row['المسؤول'] || row['مستخدم'] || row['Assignee'] || row['User'] || Object.values(row)[0];
+            }).filter(a => a && typeof a === 'string' && a.trim());
+            
+            const uniqueNew = [...new Set(newAssignees)].filter(a => !APP_STATE.assignees.includes(a.trim()));
+            
+            if (uniqueNew.length > 0) {
+                APP_STATE.assignees.push(...uniqueNew.map(a => a.trim()));
+                saveSettings();
+                renderAssigneesList();
+                populateFilters();
+                showToast(`تم استيراد ${uniqueNew.length} مستخدم/مسؤول جديد`, 'success');
+            } else {
+                showToast('لا يوجد مستخدمين جدد للاستيراد', 'info');
+            }
+        }
+    } catch (error) {
+        console.error('Error importing assignees:', error);
+        showToast('حدث خطأ أثناء استيراد المستخدمين', 'error');
+    }
+    
+    event.target.value = '';
+    hideLoading();
+}
+
+function readExcelFile(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheet];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                resolve(jsonData);
+            } catch (error) {
+                reject(error);
+            }
+        };
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+    });
+}
+
+// === Barcode Scanner for Fields ===
+function scanBarcodeForField(fieldId) {
+    APP_STATE.barcodeScannerTargetField = fieldId;
+    document.getElementById('barcodeScannerTargetField').value = fieldId;
+    document.getElementById('barcodeScannerResult').classList.add('hidden');
+    document.getElementById('barcodeScannerModal').classList.remove('hidden');
+    
+    startFieldBarcodeScanner();
+}
+
+async function startFieldBarcodeScanner() {
+    const video = document.getElementById('barcodeScannerVideo');
+    
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment' }
+        });
+        
+        APP_STATE.barcodeScannerStream = stream;
+        video.srcObject = stream;
+        video.play();
+        
+        // Start Quagga for barcode detection
+        if (typeof Quagga !== 'undefined') {
+            Quagga.init({
+                inputStream: {
+                    name: "Live",
+                    type: "LiveStream",
+                    target: document.getElementById('barcodeScannerPreview'),
+                    constraints: {
+                        facingMode: "environment"
+                    }
+                },
+                decoder: {
+                    readers: ["code_128_reader", "ean_reader", "ean_8_reader", "code_39_reader", "upc_reader", "upc_e_reader"]
+                }
+            }, function(err) {
+                if (err) {
+                    console.error('Quagga init error:', err);
+                    return;
+                }
+                Quagga.start();
+            });
+            
+            Quagga.onDetected(function(result) {
+                const code = result.codeResult.code;
+                if (code) {
+                    handleBarcodeDetection(code);
+                }
+            });
+        }
+        
+    } catch (error) {
+        console.error('Camera error:', error);
+        showToast('لا يمكن الوصول إلى الكاميرا. تأكد من منح الإذن.', 'error');
+    }
+}
+
+function handleBarcodeDetection(code) {
+    const targetField = APP_STATE.barcodeScannerTargetField;
+    
+    if (targetField) {
+        document.getElementById(targetField).value = code;
+        
+        // Show result
+        const resultDiv = document.getElementById('barcodeScannerResult');
+        document.getElementById('barcodeScannerResultText').textContent = code;
+        resultDiv.classList.remove('hidden');
+        
+        // Play success sound
+        playBeepSound();
+        
+        // Close modal after short delay
+        setTimeout(() => {
+            closeBarcodeScannerModal();
+        }, 1000);
+    }
+}
+
+function closeBarcodeScannerModal() {
+    // Stop video stream
+    if (APP_STATE.barcodeScannerStream) {
+        APP_STATE.barcodeScannerStream.getTracks().forEach(track => track.stop());
+        APP_STATE.barcodeScannerStream = null;
+    }
+    
+    // Stop Quagga
+    if (typeof Quagga !== 'undefined') {
+        try {
+            Quagga.stop();
+        } catch (e) {}
+    }
+    
+    document.getElementById('barcodeScannerModal').classList.add('hidden');
+    APP_STATE.barcodeScannerTargetField = null;
+}
+
+function manualBarcodeEntry() {
+    const targetField = APP_STATE.barcodeScannerTargetField;
+    const code = prompt('أدخل الكود يدوياً:');
+    
+    if (code && targetField) {
+        document.getElementById(targetField).value = code.trim();
+        closeBarcodeScannerModal();
+        showToast('تم إدخال الكود', 'success');
+    }
+}
+
+function playBeepSound() {
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        
+        oscillator.frequency.value = 1000;
+        oscillator.type = 'sine';
+        gainNode.gain.value = 0.3;
+        
+        oscillator.start();
+        setTimeout(() => oscillator.stop(), 150);
+    } catch (e) {}
+}
+
+// === Quick Edit Current Value Functions ===
+function openQuickEditValueModal(assetId) {
+    const asset = APP_STATE.assets.find(a => a.id === assetId);
+    if (!asset) return;
+    
+    document.getElementById('quickEditAssetId').value = assetId;
+    document.getElementById('quickEditAssetName').textContent = `${asset.code} - ${asset.name}`;
+    document.getElementById('quickEditPurchasePrice').textContent = formatCurrency(asset.purchasePrice);
+    document.getElementById('quickEditCurrentValue').value = asset.currentValue || 0;
+    
+    document.getElementById('quickEditValueModal').classList.remove('hidden');
+}
+
+function closeQuickEditValueModal() {
+    document.getElementById('quickEditValueModal').classList.add('hidden');
+}
+
+async function saveQuickEditValue() {
+    const assetId = document.getElementById('quickEditAssetId').value;
+    const newValue = parseFloat(document.getElementById('quickEditCurrentValue').value) || 0;
+    
+    const asset = APP_STATE.assets.find(a => a.id === assetId);
+    if (!asset) return;
+    
+    showLoading();
+    
+    try {
+        asset.currentValue = newValue;
+        asset.updatedAt = Date.now();
+        
+        // Save to IndexedDB
+        await dbPut(STORES.assets, asset);
+        
+        // Sync with server
+        if (APP_STATE.isOnline) {
+            try {
+                await fetch(`${API_BASE}/assets/${assetId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ currentValue: newValue })
+                });
+            } catch (e) {
+                await addToSyncQueue('update', 'assets', asset);
+            }
+        } else {
+            await addToSyncQueue('update', 'assets', asset);
+        }
+        
+        showToast('تم تحديث القيمة الحالية بنجاح', 'success');
+        closeQuickEditValueModal();
+        renderAssetsTable();
+        updateDashboard();
+        
+    } catch (error) {
+        console.error('Error updating value:', error);
+        showToast('حدث خطأ أثناء التحديث', 'error');
+    }
+    
+    hideLoading();
+}
+
+// === Export Reports to Excel Functions ===
+// === Additional Enhancements ===
+
+// Import Assets from Excel
+async function importAssetsFromExcel(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    showLoading();
+    
+    try {
+        const data = await readExcelFile(file);
+        if (data && data.length > 0) {
+            let imported = 0;
+            let skipped = 0;
+            
+            for (const row of data) {
+                // Map Excel columns to asset fields
+                const assetData = {
+                    id: generateId(),
+                    name: row['اسم الأصل'] || row['الاسم'] || row['Name'] || '',
+                    code: row['الكود'] || row['كود الأصل'] || row['Code'] || generateAutoCode(),
+                    category: row['الفئة'] || row['Category'] || 'أخرى',
+                    serialNumber: row['الرقم التسلسلي'] || row['Serial'] || '',
+                    department: row['القسم'] || row['الإدارة'] || row['Department'] || '',
+                    location: row['الموقع'] || row['Location'] || '',
+                    purchaseDate: formatExcelDate(row['تاريخ الشراء'] || row['Purchase Date']),
+                    purchasePrice: parseFloat(row['سعر الشراء'] || row['Purchase Price']) || 0,
+                    currentValue: parseFloat(row['القيمة الحالية'] || row['Current Value']) || 0,
+                    condition: row['الحالة'] || row['Condition'] || 'جيد',
+                    supplier: row['المورد'] || row['Supplier'] || '',
+                    warranty: formatExcelDate(row['الضمان'] || row['Warranty']),
+                    assignee: row['المسؤول'] || row['المستخدم'] || row['Assignee'] || '',
+                    inventoryPerson: row['القائم بالجرد'] || APP_STATE.inventoryPerson || '',
+                    notes: row['ملاحظات'] || row['Notes'] || '',
+                    lastInventoryDate: new Date().toISOString().split('T')[0],
+                    updatedAt: Date.now()
+                };
+                
+                // Skip if no name
+                if (!assetData.name) {
+                    skipped++;
+                    continue;
+                }
+                
+                // Save to IndexedDB
+                await dbPut(STORES.assets, assetData);
+                APP_STATE.assets.push(assetData);
+                
+                // Add to sync queue
+                if (APP_STATE.isOnline) {
+                    try {
+                        await fetch(`${API_BASE}/assets`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(assetData)
+                        });
+                    } catch (e) {
+                        await addToSyncQueue('create', 'assets', assetData);
+                    }
+                } else {
+                    await addToSyncQueue('create', 'assets', assetData);
+                }
+                
+                imported++;
+            }
+            
+            showToast(`تم استيراد ${imported} أصل${skipped > 0 ? ` (تم تجاهل ${skipped})` : ''}`, 'success');
+            updateDashboard();
+            renderAssetsTable();
+            populateFilters();
+        }
+    } catch (error) {
+        console.error('Error importing assets:', error);
+        showToast('حدث خطأ أثناء استيراد الأصول', 'error');
+    }
+    
+    event.target.value = '';
+    hideLoading();
+}
+
+function formatExcelDate(value) {
+    if (!value) return '';
+    
+    // If it's an Excel date number
+    if (typeof value === 'number') {
+        const date = new Date((value - 25569) * 86400 * 1000);
+        return date.toISOString().split('T')[0];
+    }
+    
+    // If it's already a date string
+    if (typeof value === 'string') {
+        const parsed = new Date(value);
+        if (!isNaN(parsed.getTime())) {
+            return parsed.toISOString().split('T')[0];
+        }
+    }
+    
+    return '';
+}
+
+function generateAutoCode() {
+    const year = new Date().getFullYear();
+    const random = Math.floor(Math.random() * 9000) + 1000;
+    return `AST-${year}-${random}`;
+}
+
+// Export all data with comprehensive fields
+function exportAllAssetsToExcel() {
+    const data = APP_STATE.assets.map(asset => ({
+        'الكود': asset.code,
+        'اسم الأصل': asset.name,
+        'الفئة': asset.category,
+        'الرقم التسلسلي': asset.serialNumber,
+        'القسم/الإدارة': asset.department,
+        'الموقع التفصيلي': asset.location,
+        'تاريخ الشراء': asset.purchaseDate,
+        'سعر الشراء': asset.purchasePrice,
+        'القيمة الحالية': asset.currentValue,
+        'الإهلاك': (parseFloat(asset.purchasePrice) || 0) - (parseFloat(asset.currentValue) || 0),
+        'الحالة': asset.condition,
+        'المورد': asset.supplier,
+        'تاريخ انتهاء الضمان': asset.warranty,
+        'المستخدم/المسؤول': asset.assignee,
+        'القائم بالجرد': asset.inventoryPerson,
+        'تاريخ آخر جرد': asset.lastInventoryDate,
+        'ملاحظات': asset.notes
+    }));
+    
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'الأصول');
+    
+    // Add summary sheet
+    const summaryData = [
+        { 'البند': 'إجمالي الأصول', 'القيمة': APP_STATE.assets.length },
+        { 'البند': 'إجمالي قيمة الشراء', 'القيمة': APP_STATE.assets.reduce((sum, a) => sum + (parseFloat(a.purchasePrice) || 0), 0) },
+        { 'البند': 'إجمالي القيمة الحالية', 'القيمة': APP_STATE.assets.reduce((sum, a) => sum + (parseFloat(a.currentValue) || 0), 0) },
+        { 'البند': 'إجمالي الإهلاك', 'القيمة': APP_STATE.assets.reduce((sum, a) => sum + ((parseFloat(a.purchasePrice) || 0) - (parseFloat(a.currentValue) || 0)), 0) },
+        { 'البند': 'تاريخ التصدير', 'القيمة': new Date().toLocaleString('ar-SA') },
+        { 'البند': 'القائم بالجرد', 'القيمة': APP_STATE.inventoryPerson || 'غير محدد' }
+    ];
+    const summaryWs = XLSX.utils.json_to_sheet(summaryData);
+    XLSX.utils.book_append_sheet(wb, summaryWs, 'ملخص');
+    
+    XLSX.writeFile(wb, `جرد_الأصول_الشامل_${new Date().toISOString().split('T')[0]}.xlsx`);
+    showToast('تم تصدير جميع البيانات بنجاح', 'success');
+}
+
+// Download Excel Template for Import
+function downloadExcelTemplate() {
+    const templateData = [
+        {
+            'اسم الأصل': 'مثال: جهاز كمبيوتر',
+            'الكود': 'IT-2024-001',
+            'الفئة': 'معدات إلكترونية',
+            'الرقم التسلسلي': 'SN-123456',
+            'القسم/الإدارة': 'تقنية المعلومات',
+            'الموقع': 'الطابق الثاني - غرفة 201',
+            'تاريخ الشراء': '2024-01-15',
+            'سعر الشراء': 5000,
+            'القيمة الحالية': 4500,
+            'الحالة': 'ممتاز',
+            'المورد': 'شركة التقنية',
+            'الضمان': '2027-01-15',
+            'المسؤول': 'أحمد محمد',
+            'ملاحظات': 'ملاحظات إضافية'
+        }
+    ];
+    
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'نموذج');
+    
+    // Add instructions sheet
+    const instructions = [
+        { 'التعليمات': 'قم بتعبئة البيانات في الأعمدة المحددة' },
+        { 'التعليمات': 'الفئات المتاحة: أثاث، معدات إلكترونية، مركبات، أجهزة طبية، معدات مكتبية، أجهزة كهربائية، أخرى' },
+        { 'التعليمات': 'الحالات المتاحة: ممتاز، جيد، مقبول، يحتاج صيانة، تالف' },
+        { 'التعليمات': 'تنسيق التاريخ: YYYY-MM-DD مثال: 2024-01-15' },
+        { 'التعليمات': 'الحقول المطلوبة: اسم الأصل (على الأقل)' }
+    ];
+    const instrWs = XLSX.utils.json_to_sheet(instructions);
+    XLSX.utils.book_append_sheet(wb, instrWs, 'تعليمات');
+    
+    XLSX.writeFile(wb, 'نموذج_استيراد_الأصول.xlsx');
+    showToast('تم تحميل النموذج', 'success');
+}
+
+// Search by barcode in inventory page
+function searchByBarcode() {
+    const code = prompt('أدخل كود الأصل أو الرقم التسلسلي:');
+    if (!code) return;
+    
+    const asset = APP_STATE.assets.find(a => 
+        a.code === code || 
+        a.serialNumber === code ||
+        a.code.toLowerCase().includes(code.toLowerCase())
+    );
+    
+    if (asset) {
+        viewAssetDetails(asset.id);
+    } else {
+        showToast('لم يتم العثور على الأصل', 'warning');
+    }
+}
+
+// Bulk update assets condition
+async function bulkUpdateCondition(newCondition) {
+    const selectedIds = Array.from(document.querySelectorAll('.asset-checkbox:checked'))
+        .map(cb => cb.dataset.id);
+    
+    if (selectedIds.length === 0) {
+        showToast('يرجى تحديد أصول للتحديث', 'warning');
+        return;
+    }
+    
+    if (!confirm(`هل تريد تحديث حالة ${selectedIds.length} أصل إلى "${newCondition}"؟`)) return;
+    
+    showLoading();
+    
+    try {
+        for (const id of selectedIds) {
+            const asset = APP_STATE.assets.find(a => a.id === id);
+            if (asset) {
+                asset.condition = newCondition;
+                asset.updatedAt = Date.now();
+                await dbPut(STORES.assets, asset);
+                
+                if (APP_STATE.isOnline) {
+                    try {
+                        await fetch(`${API_BASE}/assets/${id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ condition: newCondition })
+                        });
+                    } catch (e) {
+                        await addToSyncQueue('update', 'assets', asset);
+                    }
+                }
+            }
+        }
+        
+        showToast(`تم تحديث ${selectedIds.length} أصل`, 'success');
+        renderAssetsTable();
+        updateDashboard();
+    } catch (error) {
+        console.error('Bulk update error:', error);
+        showToast('حدث خطأ أثناء التحديث', 'error');
+    }
+    
+    hideLoading();
+}
+
+// Generate comprehensive asset report
+function generateAssetReport(assetId) {
+    const asset = APP_STATE.assets.find(a => a.id === assetId);
+    if (!asset) return;
+    
+    const reportWindow = window.open('', '_blank');
+    reportWindow.document.write(`
+        <!DOCTYPE html>
+        <html dir="rtl" lang="ar">
+        <head>
+            <meta charset="UTF-8">
+            <title>تقرير الأصل - ${asset.code}</title>
+            <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+            <style>
+                body { font-family: 'Tajawal', sans-serif; padding: 40px; }
+                .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #1e40af; padding-bottom: 20px; }
+                .header h1 { color: #1e40af; margin: 0; }
+                .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+                .info-item { padding: 10px; background: #f8fafc; border-radius: 8px; }
+                .info-label { font-size: 12px; color: #64748b; }
+                .info-value { font-size: 16px; font-weight: bold; color: #1e293b; }
+                .barcode { text-align: center; margin: 30px 0; }
+                .footer { text-align: center; margin-top: 40px; font-size: 12px; color: #64748b; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>نظام جرد وحصر الأصول الحكومية</h1>
+                <p>تقرير تفصيلي للأصل</p>
+            </div>
+            <div class="info-grid">
+                <div class="info-item"><div class="info-label">كود الأصل</div><div class="info-value">${asset.code}</div></div>
+                <div class="info-item"><div class="info-label">اسم الأصل</div><div class="info-value">${asset.name}</div></div>
+                <div class="info-item"><div class="info-label">الفئة</div><div class="info-value">${asset.category}</div></div>
+                <div class="info-item"><div class="info-label">الرقم التسلسلي</div><div class="info-value">${asset.serialNumber || '-'}</div></div>
+                <div class="info-item"><div class="info-label">القسم</div><div class="info-value">${asset.department || '-'}</div></div>
+                <div class="info-item"><div class="info-label">الموقع</div><div class="info-value">${asset.location || '-'}</div></div>
+                <div class="info-item"><div class="info-label">تاريخ الشراء</div><div class="info-value">${asset.purchaseDate || '-'}</div></div>
+                <div class="info-item"><div class="info-label">سعر الشراء</div><div class="info-value">${formatCurrency(asset.purchasePrice)}</div></div>
+                <div class="info-item"><div class="info-label">القيمة الحالية</div><div class="info-value">${formatCurrency(asset.currentValue)}</div></div>
+                <div class="info-item"><div class="info-label">الحالة</div><div class="info-value">${asset.condition}</div></div>
+                <div class="info-item"><div class="info-label">المسؤول</div><div class="info-value">${asset.assignee || '-'}</div></div>
+                <div class="info-item"><div class="info-label">القائم بالجرد</div><div class="info-value">${asset.inventoryPerson || '-'}</div></div>
+            </div>
+            <div class="barcode">
+                <svg id="barcodeSvg"></svg>
+            </div>
+            <div class="footer">
+                <p>تم إنشاء هذا التقرير بتاريخ: ${new Date().toLocaleString('ar-SA')}</p>
+            </div>
+            <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+            <script>
+                JsBarcode("#barcodeSvg", "${asset.code}", { format: "CODE128", width: 2, height: 60 });
+            </script>
+        </body>
+        </html>
+    `);
+    reportWindow.document.close();
+}
+
+function exportReportToExcel(reportType) {
+    let data = [];
+    let filename = '';
+    
+    switch (reportType) {
+        case 'summary':
+            data = APP_STATE.assets.map(asset => ({
+                'الكود': asset.code,
+                'الاسم': asset.name,
+                'الفئة': asset.category,
+                'القسم': asset.department,
+                'الموقع': asset.location,
+                'سعر الشراء': asset.purchasePrice,
+                'القيمة الحالية': asset.currentValue,
+                'الحالة': asset.condition
+            }));
+            filename = 'تقرير_ملخص_الأصول';
+            break;
+            
+        case 'depreciation':
+            data = APP_STATE.assets.map(asset => {
+                const purchase = parseFloat(asset.purchasePrice) || 0;
+                const current = parseFloat(asset.currentValue) || 0;
+                const depreciation = purchase - current;
+                const rate = purchase > 0 ? ((depreciation / purchase) * 100).toFixed(1) : 0;
+                return {
+                    'الكود': asset.code,
+                    'الاسم': asset.name,
+                    'سعر الشراء': purchase,
+                    'القيمة الحالية': current,
+                    'الإهلاك': depreciation,
+                    'نسبة الإهلاك %': rate
+                };
+            });
+            filename = 'تقرير_الإهلاك';
+            break;
+            
+        case 'maintenance':
+            const needMaint = APP_STATE.assets.filter(a => a.condition === 'يحتاج صيانة' || a.condition === 'تالف');
+            data = needMaint.map(asset => ({
+                'الكود': asset.code,
+                'الاسم': asset.name,
+                'القسم': asset.department,
+                'الموقع': asset.location,
+                'الحالة': asset.condition,
+                'ملاحظات': asset.notes
+            }));
+            filename = 'تقرير_الصيانة';
+            break;
+            
+        case 'inventory':
+            data = APP_STATE.inventoryLogs.map((log, index) => ({
+                'رقم العملية': `INV-${String(index + 1).padStart(3, '0')}`,
+                'اسم الجرد': log.name,
+                'التاريخ': log.date,
+                'الإدارة': log.department || 'جميع الإدارات',
+                'القائم بالجرد': log.inventoryPerson,
+                'الحالة': log.status
+            }));
+            filename = 'تقرير_الجرد';
+            break;
+    }
+    
+    if (data.length === 0) {
+        showToast('لا توجد بيانات للتصدير', 'warning');
+        return;
+    }
+    
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'التقرير');
+    XLSX.writeFile(wb, `${filename}_${new Date().toISOString().split('T')[0]}.xlsx`);
+    
+    showToast('تم تصدير التقرير بنجاح', 'success');
 }

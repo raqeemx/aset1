@@ -538,3 +538,126 @@ tbody tr:last-child {
         font-size: 24px;
     }
 }
+
+/* === Barcode Scanner Modal === */
+.scanner-frame {
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+}
+
+.scanner-line-modal {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 240px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #10b981, transparent);
+    animation: scanModal 1.5s linear infinite;
+    z-index: 10;
+}
+
+@keyframes scanModal {
+    0% { top: calc(50% - 60px); }
+    50% { top: calc(50% + 60px); }
+    100% { top: calc(50% - 60px); }
+}
+
+/* === Quick Edit Value Animation === */
+.quick-edit-hover {
+    transition: all 0.2s ease;
+}
+
+.quick-edit-hover:hover {
+    background: #f0fdf4;
+    border-radius: 8px;
+    padding: 4px 8px;
+    margin: -4px -8px;
+}
+
+/* === Settings List Scrollbar === */
+#categoriesList::-webkit-scrollbar,
+#locationsList::-webkit-scrollbar,
+#assigneesList::-webkit-scrollbar {
+    width: 6px;
+}
+
+#categoriesList::-webkit-scrollbar-thumb,
+#locationsList::-webkit-scrollbar-thumb,
+#assigneesList::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+/* === Excel Import Button Hover === */
+.excel-import-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+}
+
+/* === Enhanced Table Row Hover === */
+tbody tr:hover .fa-edit {
+    opacity: 1 !important;
+}
+
+/* === Value Cell Editable Indicator === */
+.editable-value {
+    position: relative;
+    cursor: pointer;
+}
+
+.editable-value::after {
+    content: '\f303';
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    font-size: 10px;
+    color: #94a3b8;
+    margin-right: 4px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.editable-value:hover::after {
+    opacity: 1;
+}
+
+/* === Location/Assignee Tags === */
+.tag-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: #f1f5f9;
+    border-radius: 20px;
+    font-size: 13px;
+    transition: all 0.2s ease;
+}
+
+.tag-item:hover {
+    background: #e2e8f0;
+}
+
+.tag-item.location {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.tag-item.assignee {
+    background: #f3e8ff;
+    color: #6b21a8;
+}
+
+/* === Report Export Buttons === */
+.report-export-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.report-export-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
