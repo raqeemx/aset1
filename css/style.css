@@ -822,3 +822,134 @@ tbody tr:hover .fa-edit {
         border: 1px solid #000;
     }
 }
+
+/* === Advanced Search Panel === */
+#advancedSearchPanel {
+    transition: all 0.3s ease;
+}
+
+#advancedSearchPanel select {
+    background-color: white;
+    cursor: pointer;
+}
+
+#advancedSearchPanel select:hover {
+    border-color: #3b82f6;
+}
+
+#advancedSearchPanel label {
+    color: #4b5563;
+}
+
+/* === Active Filters Tags === */
+#activeFiltersTags span {
+    animation: fadeIn 0.2s ease;
+}
+
+#activeFiltersTags button {
+    transition: all 0.2s ease;
+}
+
+#activeFiltersTags button:hover {
+    transform: scale(1.1);
+}
+
+/* === Filter Toggle Button === */
+#advancedSearchToggle {
+    transition: all 0.2s ease;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+}
+
+#advancedSearchToggle:hover {
+    background: #f1f5f9;
+}
+
+#advancedSearchToggle.text-red-500 {
+    background: #fee2e2;
+}
+
+/* === Search Input Enhancement === */
+#assetSearch {
+    transition: all 0.3s ease;
+}
+
+#assetSearch:focus {
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+    border-color: #3b82f6;
+}
+
+/* === Dropdown Filter Animation === */
+#advancedSearchPanel select {
+    transition: all 0.2s ease;
+}
+
+#advancedSearchPanel select:focus {
+    border-color: #1e40af;
+    box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+}
+
+/* === Filter Section Card === */
+.filter-section-card {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* === Results Count Badge === */
+.results-count-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    background: linear-gradient(135deg, #1e40af, #3b82f6);
+    color: white;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* === Clear Filters Button === */
+.clear-filters-btn {
+    transition: all 0.2s ease;
+}
+
+.clear-filters-btn:hover {
+    color: #dc2626;
+    transform: scale(1.05);
+}
+
+/* === Mobile Responsive for Advanced Search === */
+@media (max-width: 768px) {
+    #advancedSearchPanel .grid {
+        grid-template-columns: 1fr;
+    }
+    
+    #advancedSearchPanel select {
+        font-size: 14px;
+        padding: 10px 12px;
+    }
+    
+    #activeFiltersTags {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    #activeFiltersTags span {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
+
+/* === Search Animation === */
+@keyframes searchPulse {
+    0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+}
+
+#assetSearch.searching {
+    animation: searchPulse 1s infinite;
+}

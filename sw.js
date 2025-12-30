@@ -3,17 +3,22 @@
  * Enables offline functionality and caching
  */
 
-const CACHE_NAME = 'asset-inventory-v4';
+const CACHE_NAME = 'asset-inventory-v5';
 const OFFLINE_URL = 'offline.html';
 
-// Assets to cache immediately
+// Assets to cache immediately (with and without leading slash for compatibility)
 const PRECACHE_ASSETS = [
     '/',
     '/index.html',
+    'index.html',
     '/css/style.css',
+    'css/style.css',
     '/js/app.js',
+    'js/app.js',
     '/manifest.json',
-    '/offline.html'
+    'manifest.json',
+    '/offline.html',
+    'offline.html'
 ];
 
 // External resources to cache

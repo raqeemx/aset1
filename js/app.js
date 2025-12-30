@@ -1190,7 +1190,7 @@ function populateFilters() {
     const assetCategory = document.getElementById('assetCategory');
     
     // Clear existing options except first
-    categoryFilter.innerHTML = '<option value="">جميع الفئات</option>';
+    categoryFilter.innerHTML = '<option value="">-- الكل --</option>';
     assetCategory.innerHTML = '';
     
     APP_STATE.categories.forEach(cat => {
@@ -1200,7 +1200,7 @@ function populateFilters() {
     
     // Condition filter
     const conditionFilter = document.getElementById('conditionFilter');
-    conditionFilter.innerHTML = '<option value="">جميع الحالات</option>';
+    conditionFilter.innerHTML = '<option value="">-- الكل --</option>';
     APP_STATE.conditions.forEach(cond => {
         conditionFilter.innerHTML += `<option value="${cond}">${cond}</option>`;
     });
@@ -1211,7 +1211,7 @@ function populateFilters() {
     const inventoryDepartment = document.getElementById('inventoryDepartment');
     const parentDepartment = document.getElementById('parentDepartment');
     
-    departmentFilter.innerHTML = '<option value="">جميع الإدارات</option>';
+    departmentFilter.innerHTML = '<option value="">-- الكل --</option>';
     assetDepartment.innerHTML = '<option value="">-- اختر الإدارة --</option>';
     inventoryDepartment.innerHTML = '<option value="">جميع الإدارات</option>';
     parentDepartment.innerHTML = '<option value="">-- لا يوجد --</option>';
@@ -1278,6 +1278,9 @@ function populateFilters() {
         });
     }
     
+    // === Populate Advanced Search Filters ===
+    populateAdvancedSearchFilters();
+    
     // Building dropdown
     const assetBuilding = document.getElementById('assetBuilding');
     if (assetBuilding && APP_STATE.buildings) {
@@ -1318,29 +1321,44 @@ function updateMaintenanceAssetDropdown() {
 
 function renderAssetsTable() {
     const tbody = document.getElementById('assetsTableBody');
-    const searchTerm = document.getElementById('assetSearch').value.toLowerCase();
-    const categoryFilter = document.getElementById('categoryFilter').value;
-    const conditionFilter = document.getElementById('conditionFilter').value;
-    const departmentFilter = document.getElementById('departmentFilter').value;
     
-    // Filter assets
+    // Get all filter values using the new function
+    const filters = getActiveFilterValues();
+    
+    // Filter assets with advanced search
     let filtered = APP_STATE.assets.filter(asset => {
-        const matchSearch = !searchTerm || 
-            asset.name.toLowerCase().includes(searchTerm) ||
-            asset.code.toLowerCase().includes(searchTerm) ||
-            (asset.department && asset.department.toLowerCase().includes(searchTerm)) ||
-            (asset.inventoryPerson && asset.inventoryPerson.toLowerCase().includes(searchTerm)) ||
-            (asset.building && asset.building.toLowerCase().includes(searchTerm)) ||
-            (asset.floor && asset.floor.toLowerCase().includes(searchTerm)) ||
-            (asset.room && asset.room.toLowerCase().includes(searchTerm)) ||
-            (asset.location && asset.location.toLowerCase().includes(searchTerm)) ||
-            (asset.supplier && asset.supplier.toLowerCase().includes(searchTerm)) ||
-            (asset.serialNumber && asset.serialNumber.toLowerCase().includes(searchTerm));
-        const matchCategory = !categoryFilter || asset.category === categoryFilter;
-        const matchCondition = !conditionFilter || asset.condition === conditionFilter;
-        const matchDepartment = !departmentFilter || asset.department === departmentFilter;
+        // Text search - search in multiple fields
+        const matchSearch = !filters.search || 
+            (asset.name && asset.name.toLowerCase().includes(filters.search)) ||
+            (asset.code && asset.code.toLowerCase().includes(filters.search)) ||
+            (asset.department && asset.department.toLowerCase().includes(filters.search)) ||
+            (asset.inventoryPerson && asset.inventoryPerson.toLowerCase().includes(filters.search)) ||
+            (asset.building && asset.building.toLowerCase().includes(filters.search)) ||
+            (asset.floor && asset.floor.toLowerCase().includes(filters.search)) ||
+            (asset.room && asset.room.toLowerCase().includes(filters.search)) ||
+            (asset.location && asset.location.toLowerCase().includes(filters.search)) ||
+            (asset.locationDesc && asset.locationDesc.toLowerCase().includes(filters.search)) ||
+            (asset.supplier && asset.supplier.toLowerCase().includes(filters.search)) ||
+            (asset.assignee && asset.assignee.toLowerCase().includes(filters.search)) ||
+            (asset.serialNumber && asset.serialNumber.toLowerCase().includes(filters.search));
         
-        return matchSearch && matchCategory && matchCondition && matchDepartment;
+        // Dropdown filters - exact match
+        const matchAssetName = !filters.assetName || asset.name === filters.assetName;
+        const matchCategory = !filters.category || asset.category === filters.category;
+        const matchCategory2 = !filters.category2 || asset.category2 === filters.category2;
+        const matchCategory3 = !filters.category3 || asset.category3 === filters.category3;
+        const matchDepartment = !filters.department || asset.department === filters.department;
+        const matchBuilding = !filters.building || asset.building === filters.building;
+        const matchFloor = !filters.floor || asset.floor === filters.floor;
+        const matchRoom = !filters.room || asset.room === filters.room;
+        const matchLocation = !filters.location || asset.location === filters.location;
+        const matchAssignee = !filters.assignee || asset.assignee === filters.assignee;
+        const matchCondition = !filters.condition || asset.condition === filters.condition;
+        const matchSupplier = !filters.supplier || asset.supplier === filters.supplier;
+        
+        return matchSearch && matchAssetName && matchCategory && matchCategory2 && matchCategory3 && 
+               matchDepartment && matchBuilding && matchFloor && matchRoom && matchLocation && 
+               matchAssignee && matchCondition && matchSupplier;
     });
     
     // Pagination
@@ -1431,6 +1449,217 @@ function goToPage(page) {
 function filterAssets() {
     APP_STATE.currentPage = 1;
     renderAssetsTable();
+    updateActiveFiltersDisplay();
+}
+
+// === Advanced Search Functions ===
+function toggleAdvancedSearch() {
+    const panel = document.getElementById('advancedSearchPanel');
+    const toggle = document.getElementById('advancedSearchToggle');
+    
+    if (panel.classList.contains('hidden')) {
+        panel.classList.remove('hidden');
+        toggle.innerHTML = '<i class="fas fa-times ml-1"></i>إخفاء البحث المتقدم';
+        toggle.classList.add('text-red-500');
+        toggle.classList.remove('text-gov-blue');
+    } else {
+        panel.classList.add('hidden');
+        toggle.innerHTML = '<i class="fas fa-sliders-h ml-1"></i>بحث متقدم';
+        toggle.classList.remove('text-red-500');
+        toggle.classList.add('text-gov-blue');
+    }
+}
+
+function populateAdvancedSearchFilters() {
+    // Get unique values from existing assets
+    const uniqueAssetNames = [...new Set(APP_STATE.assets.map(a => a.name).filter(Boolean))];
+    const uniqueCategories2 = [...new Set([...APP_STATE.categories2, ...APP_STATE.assets.map(a => a.category2).filter(Boolean)])];
+    const uniqueCategories3 = [...new Set([...APP_STATE.categories3, ...APP_STATE.assets.map(a => a.category3).filter(Boolean)])];
+    const uniqueBuildings = [...new Set([...APP_STATE.buildings, ...APP_STATE.assets.map(a => a.building).filter(Boolean)])];
+    const uniqueFloors = [...new Set([...APP_STATE.floors, ...APP_STATE.assets.map(a => a.floor).filter(Boolean)])];
+    const uniqueRooms = [...new Set(APP_STATE.assets.map(a => a.room).filter(Boolean))];
+    const uniqueLocations = [...new Set([...APP_STATE.locations, ...APP_STATE.assets.map(a => a.location).filter(Boolean)])];
+    const uniqueAssignees = [...new Set([...APP_STATE.assignees, ...APP_STATE.assets.map(a => a.assignee).filter(Boolean)])];
+    const uniqueSuppliers = [...new Set([...APP_STATE.suppliers, ...APP_STATE.assets.map(a => a.supplier).filter(Boolean)])];
+    
+    // Populate Asset Name Filter
+    const filterAssetName = document.getElementById('filterAssetName');
+    if (filterAssetName) {
+        filterAssetName.innerHTML = '<option value="">-- الكل --</option>';
+        uniqueAssetNames.sort((a, b) => a.localeCompare(b, 'ar')).forEach(name => {
+            filterAssetName.innerHTML += `<option value="${name}">${name}</option>`;
+        });
+    }
+    
+    // Populate Category 2 Filter
+    const filterCategory2 = document.getElementById('filterCategory2');
+    if (filterCategory2) {
+        filterCategory2.innerHTML = '<option value="">-- الكل --</option>';
+        uniqueCategories2.sort((a, b) => a.localeCompare(b, 'ar')).forEach(cat => {
+            filterCategory2.innerHTML += `<option value="${cat}">${cat}</option>`;
+        });
+    }
+    
+    // Populate Category 3 Filter
+    const filterCategory3 = document.getElementById('filterCategory3');
+    if (filterCategory3) {
+        filterCategory3.innerHTML = '<option value="">-- الكل --</option>';
+        uniqueCategories3.sort((a, b) => a.localeCompare(b, 'ar')).forEach(cat => {
+            filterCategory3.innerHTML += `<option value="${cat}">${cat}</option>`;
+        });
+    }
+    
+    // Populate Building Filter
+    const filterBuilding = document.getElementById('filterBuilding');
+    if (filterBuilding) {
+        filterBuilding.innerHTML = '<option value="">-- الكل --</option>';
+        uniqueBuildings.sort((a, b) => a.localeCompare(b, 'ar')).forEach(building => {
+            filterBuilding.innerHTML += `<option value="${building}">${building}</option>`;
+        });
+    }
+    
+    // Populate Floor Filter
+    const filterFloor = document.getElementById('filterFloor');
+    if (filterFloor) {
+        filterFloor.innerHTML = '<option value="">-- الكل --</option>';
+        uniqueFloors.forEach(floor => {
+            filterFloor.innerHTML += `<option value="${floor}">${floor}</option>`;
+        });
+    }
+    
+    // Populate Room Filter
+    const filterRoom = document.getElementById('filterRoom');
+    if (filterRoom) {
+        filterRoom.innerHTML = '<option value="">-- الكل --</option>';
+        uniqueRooms.sort((a, b) => a.localeCompare(b, 'ar')).forEach(room => {
+            filterRoom.innerHTML += `<option value="${room}">${room}</option>`;
+        });
+    }
+    
+    // Populate Location Filter
+    const filterLocation = document.getElementById('filterLocation');
+    if (filterLocation) {
+        filterLocation.innerHTML = '<option value="">-- الكل --</option>';
+        uniqueLocations.sort((a, b) => a.localeCompare(b, 'ar')).forEach(location => {
+            filterLocation.innerHTML += `<option value="${location}">${location}</option>`;
+        });
+    }
+    
+    // Populate Assignee Filter
+    const filterAssignee = document.getElementById('filterAssignee');
+    if (filterAssignee) {
+        filterAssignee.innerHTML = '<option value="">-- الكل --</option>';
+        uniqueAssignees.sort((a, b) => a.localeCompare(b, 'ar')).forEach(assignee => {
+            filterAssignee.innerHTML += `<option value="${assignee}">${assignee}</option>`;
+        });
+    }
+    
+    // Populate Supplier Filter
+    const filterSupplier = document.getElementById('filterSupplier');
+    if (filterSupplier) {
+        filterSupplier.innerHTML = '<option value="">-- الكل --</option>';
+        uniqueSuppliers.sort((a, b) => a.localeCompare(b, 'ar')).forEach(supplier => {
+            filterSupplier.innerHTML += `<option value="${supplier}">${supplier}</option>`;
+        });
+    }
+}
+
+function clearAllFilters() {
+    // Clear text search
+    document.getElementById('assetSearch').value = '';
+    
+    // Clear all select filters
+    const filterIds = [
+        'filterAssetName', 'categoryFilter', 'filterCategory2', 'filterCategory3',
+        'departmentFilter', 'filterBuilding', 'filterFloor', 'filterRoom',
+        'filterLocation', 'filterAssignee', 'conditionFilter', 'filterSupplier'
+    ];
+    
+    filterIds.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) element.value = '';
+    });
+    
+    // Refresh the table
+    filterAssets();
+    
+    showToast('تم مسح جميع الفلاتر', 'info');
+}
+
+function updateActiveFiltersDisplay() {
+    const container = document.getElementById('activeFiltersContainer');
+    const tagsContainer = document.getElementById('activeFiltersTags');
+    
+    if (!container || !tagsContainer) return;
+    
+    const filterLabels = {
+        'assetSearch': 'البحث',
+        'filterAssetName': 'اسم الأصل',
+        'categoryFilter': 'الفئة الرئيسية',
+        'filterCategory2': 'الفئة الفرعية',
+        'filterCategory3': 'الفئة التفصيلية',
+        'departmentFilter': 'الإدارة/القسم',
+        'filterBuilding': 'المبنى',
+        'filterFloor': 'الدور/الطابق',
+        'filterRoom': 'الغرفة/المكتب',
+        'filterLocation': 'الموقع التفصيلي',
+        'filterAssignee': 'المستخدم/المسؤول',
+        'conditionFilter': 'الحالة',
+        'filterSupplier': 'المورد'
+    };
+    
+    const activeFilters = [];
+    
+    Object.keys(filterLabels).forEach(id => {
+        const element = document.getElementById(id);
+        if (element && element.value) {
+            activeFilters.push({
+                id: id,
+                label: filterLabels[id],
+                value: element.value
+            });
+        }
+    });
+    
+    if (activeFilters.length > 0) {
+        container.classList.remove('hidden');
+        tagsContainer.innerHTML = activeFilters.map(filter => `
+            <span class="inline-flex items-center gap-1 px-3 py-1 bg-gov-blue text-white text-xs rounded-full">
+                <span>${filter.label}: ${filter.value}</span>
+                <button onclick="removeFilter('${filter.id}')" class="hover:bg-white hover:bg-opacity-20 rounded-full p-0.5">
+                    <i class="fas fa-times"></i>
+                </button>
+            </span>
+        `).join('');
+    } else {
+        container.classList.add('hidden');
+    }
+}
+
+function removeFilter(filterId) {
+    const element = document.getElementById(filterId);
+    if (element) {
+        element.value = '';
+        filterAssets();
+    }
+}
+
+function getActiveFilterValues() {
+    return {
+        search: document.getElementById('assetSearch')?.value?.toLowerCase() || '',
+        assetName: document.getElementById('filterAssetName')?.value || '',
+        category: document.getElementById('categoryFilter')?.value || '',
+        category2: document.getElementById('filterCategory2')?.value || '',
+        category3: document.getElementById('filterCategory3')?.value || '',
+        department: document.getElementById('departmentFilter')?.value || '',
+        building: document.getElementById('filterBuilding')?.value || '',
+        floor: document.getElementById('filterFloor')?.value || '',
+        room: document.getElementById('filterRoom')?.value || '',
+        location: document.getElementById('filterLocation')?.value || '',
+        assignee: document.getElementById('filterAssignee')?.value || '',
+        condition: document.getElementById('conditionFilter')?.value || '',
+        supplier: document.getElementById('filterSupplier')?.value || ''
+    };
 }
 
 // === Modal Functions ===
@@ -2797,11 +3026,6 @@ function exportToExcel() {
     XLSX.writeFile(wb, `جرد_الأصول_${new Date().toISOString().split('T')[0]}.xlsx`);
     
     showToast('تم تصدير البيانات بنجاح', 'success');
-}
-
-function exportToPDF() {
-    showToast('جاري تحضير ملف PDF...', 'info');
-    window.print();
 }
 
 function exportAllData() {

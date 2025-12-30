@@ -340,30 +340,35 @@
         <!-- Assets Page -->
         <div id="page-assets" class="page-content p-6 hidden">
             <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
-                <div class="flex flex-wrap items-center gap-4 mb-6">
+                <!-- Search Controls Header -->
+                <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+                    <div class="flex items-center gap-2">
+                        <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-search text-gov-blue ml-2"></i>البحث والتصفية</h3>
+                        <button onclick="toggleAdvancedSearch()" id="advancedSearchToggle" class="text-sm text-gov-blue hover:text-gov-blue-light transition-colors">
+                            <i class="fas fa-sliders-h ml-1"></i>
+                            بحث متقدم
+                        </button>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="clearAllFilters()" class="text-sm text-gray-500 hover:text-red-500 transition-colors">
+                            <i class="fas fa-times-circle ml-1"></i>
+                            مسح الفلاتر
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Basic Search Row -->
+                <div class="flex flex-wrap items-center gap-4 mb-4">
                     <div class="flex-1 min-w-64">
                         <div class="relative">
-                            <input type="text" id="assetSearch" placeholder="البحث عن أصل (الاسم، الكود، القسم، القائم بالجرد...)"
+                            <input type="text" id="assetSearch" placeholder="البحث السريع (الاسم، الكود، الرقم التسلسلي...)"
                                    class="w-full pr-10 pl-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gov-blue-light">
                             <i class="fas fa-search absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
                         </div>
                     </div>
-                    <select id="categoryFilter" class="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gov-blue-light">
-                        <option value="">جميع الفئات</option>
-                    </select>
-                    <select id="conditionFilter" class="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gov-blue-light">
-                        <option value="">جميع الحالات</option>
-                    </select>
-                    <select id="departmentFilter" class="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gov-blue-light">
-                        <option value="">جميع الإدارات</option>
-                    </select>
                     <button onclick="exportToExcel()" class="bg-gov-green text-white px-5 py-3 rounded-xl flex items-center gap-2 hover:bg-green-700 transition-colors">
                         <i class="fas fa-file-excel"></i>
                         <span>تصدير Excel</span>
-                    </button>
-                    <button onclick="exportToPDF()" class="bg-red-600 text-white px-5 py-3 rounded-xl flex items-center gap-2 hover:bg-red-700 transition-colors">
-                        <i class="fas fa-file-pdf"></i>
-                        <span>تصدير PDF</span>
                     </button>
                     <div class="relative">
                         <button onclick="toggleImportMenu()" class="bg-purple-600 text-white px-5 py-3 rounded-xl flex items-center gap-2 hover:bg-purple-700 transition-colors">
@@ -381,6 +386,117 @@
                                 <i class="fas fa-download text-blue-600 ml-2"></i>
                                 تحميل النموذج
                             </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Advanced Search Panel -->
+                <div id="advancedSearchPanel" class="bg-gradient-to-r from-slate-50 to-blue-50 rounded-xl p-4 mb-4 border border-blue-100 hidden">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        <!-- اسم الأصل -->
+                        <div class="relative">
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">اسم الأصل</label>
+                            <select id="filterAssetName" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gov-blue-light text-sm" onchange="filterAssets()">
+                                <option value="">-- الكل --</option>
+                            </select>
+                        </div>
+                        
+                        <!-- الفئة 1 (الرئيسية) -->
+                        <div class="relative">
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">الفئة 1 (الرئيسية)</label>
+                            <select id="categoryFilter" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gov-blue-light text-sm" onchange="filterAssets()">
+                                <option value="">-- الكل --</option>
+                            </select>
+                        </div>
+                        
+                        <!-- الفئة 2 (الفرعية) -->
+                        <div class="relative">
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">الفئة 2 (الفرعية)</label>
+                            <select id="filterCategory2" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gov-blue-light text-sm" onchange="filterAssets()">
+                                <option value="">-- الكل --</option>
+                            </select>
+                        </div>
+                        
+                        <!-- الفئة 3 (التفصيلية) -->
+                        <div class="relative">
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">الفئة 3 (التفصيلية)</label>
+                            <select id="filterCategory3" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gov-blue-light text-sm" onchange="filterAssets()">
+                                <option value="">-- الكل --</option>
+                            </select>
+                        </div>
+                        
+                        <!-- الإدارة/القسم -->
+                        <div class="relative">
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">الإدارة/القسم</label>
+                            <select id="departmentFilter" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gov-blue-light text-sm" onchange="filterAssets()">
+                                <option value="">-- الكل --</option>
+                            </select>
+                        </div>
+                        
+                        <!-- المبنى/الموقع الرئيسي -->
+                        <div class="relative">
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">المبنى/الموقع الرئيسي</label>
+                            <select id="filterBuilding" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gov-blue-light text-sm" onchange="filterAssets()">
+                                <option value="">-- الكل --</option>
+                            </select>
+                        </div>
+                        
+                        <!-- الدور/الطابق -->
+                        <div class="relative">
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">الدور/الطابق</label>
+                            <select id="filterFloor" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gov-blue-light text-sm" onchange="filterAssets()">
+                                <option value="">-- الكل --</option>
+                            </select>
+                        </div>
+                        
+                        <!-- الغرفة/المكتب -->
+                        <div class="relative">
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">الغرفة/المكتب</label>
+                            <select id="filterRoom" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gov-blue-light text-sm" onchange="filterAssets()">
+                                <option value="">-- الكل --</option>
+                            </select>
+                        </div>
+                        
+                        <!-- الموقع التفصيلي -->
+                        <div class="relative">
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">الموقع التفصيلي</label>
+                            <select id="filterLocation" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gov-blue-light text-sm" onchange="filterAssets()">
+                                <option value="">-- الكل --</option>
+                            </select>
+                        </div>
+                        
+                        <!-- المستخدم/المسؤول -->
+                        <div class="relative">
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">المستخدم/المسؤول</label>
+                            <select id="filterAssignee" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gov-blue-light text-sm" onchange="filterAssets()">
+                                <option value="">-- الكل --</option>
+                            </select>
+                        </div>
+                        
+                        <!-- الحالة -->
+                        <div class="relative">
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">الحالة</label>
+                            <select id="conditionFilter" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gov-blue-light text-sm" onchange="filterAssets()">
+                                <option value="">-- الكل --</option>
+                            </select>
+                        </div>
+                        
+                        <!-- المورد -->
+                        <div class="relative">
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">المورد</label>
+                            <select id="filterSupplier" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gov-blue-light text-sm" onchange="filterAssets()">
+                                <option value="">-- الكل --</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Active Filters Display -->
+                    <div id="activeFiltersContainer" class="mt-4 hidden">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="text-sm font-semibold text-gray-600">الفلاتر النشطة:</span>
+                            <div id="activeFiltersTags" class="flex flex-wrap gap-2">
+                                <!-- Active filter tags will be added here dynamically -->
+                            </div>
                         </div>
                     </div>
                 </div>
