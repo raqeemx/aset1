@@ -67,6 +67,7 @@ const APP_STATE = {
     locations: ['الطابق الأول - مكتب 101', 'الطابق الثاني - غرفة 201', 'الطابق الثالث - قاعة الاجتماعات', 'المستودع', 'موقف السيارات', 'المبنى الرئيسي', 'المبنى الفرعي', 'القبو', 'السطح'],
     buildings: ['المبنى الرئيسي', 'المبنى الفرعي', 'مبنى الخدمات', 'المستودع', 'موقف السيارات'],
     floors: ['القبو', 'الأرضي', 'الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السطح'],
+    rooms: ['مكتب 101', 'مكتب 102', 'مكتب 103', 'مكتب المدير', 'قاعة الاجتماعات', 'غرفة الخادم', 'الاستقبال', 'المخزن', 'الأرشيف'],
     assignees: [],
     conditions: ['ممتاز', 'جيد', 'مقبول', 'يحتاج صيانة', 'تالف'],
     currentPage: 1,
@@ -324,6 +325,11 @@ async function loadSettings() {
             APP_STATE.floors = floors.value;
         }
         
+        const rooms = await dbGet(STORES.settings, 'rooms');
+        if (rooms && rooms.value) {
+            APP_STATE.rooms = rooms.value;
+        }
+        
     } catch (error) {
         console.error('Error loading settings:', error);
     }
@@ -342,6 +348,7 @@ async function saveSettings() {
         await dbPut(STORES.settings, { key: 'suppliers', value: APP_STATE.suppliers });
         await dbPut(STORES.settings, { key: 'buildings', value: APP_STATE.buildings });
         await dbPut(STORES.settings, { key: 'floors', value: APP_STATE.floors });
+        await dbPut(STORES.settings, { key: 'rooms', value: APP_STATE.rooms });
     } catch (error) {
         console.error('Error saving settings:', error);
     }
@@ -1307,6 +1314,21 @@ function populateFilters() {
         });
     }
     
+    // Room dropdown
+    const assetRoom = document.getElementById('assetRoom');
+    if (assetRoom) {
+        // Get unique rooms from assets and settings
+        const uniqueRooms = [...new Set([
+            ...(APP_STATE.rooms || []),
+            ...APP_STATE.assets.map(a => a.room).filter(Boolean)
+        ])].sort((a, b) => a.localeCompare(b, 'ar'));
+        
+        assetRoom.innerHTML = '<option value="">-- اختر الغرفة/المكتب --</option>';
+        uniqueRooms.forEach(room => {
+            assetRoom.innerHTML += `<option value="${room}">${room}</option>`;
+        });
+    }
+    
     // Maintenance asset dropdown
     updateMaintenanceAssetDropdown();
 }
@@ -1767,8 +1789,19 @@ async function handleAssetSubmit(e) {
     const floorCustom = document.getElementById('assetFloorCustom');
     const floor = floorCustom && floorCustom.value.trim() ? floorCustom.value.trim() : (floorSelect ? floorSelect.value : '');
     
-    // Get room value
-    const room = document.getElementById('assetRoom') ? document.getElementById('assetRoom').value : '';
+    // Get room value (from select or custom input)
+    const roomSelect = document.getElementById('assetRoom');
+    const roomCustom = document.getElementById('assetRoomCustom');
+    const room = roomCustom && roomCustom.value.trim() ? roomCustom.value.trim() : (roomSelect ? roomSelect.value : '');
+    
+    // Save new room if not exists
+    if (room && !APP_STATE.rooms) {
+        APP_STATE.rooms = [];
+    }
+    if (room && APP_STATE.rooms && !APP_STATE.rooms.includes(room)) {
+        APP_STATE.rooms.push(room);
+        saveSettings();
+    }
     
     // Get location description
     const locationDesc = document.getElementById('assetLocationDesc') ? document.getElementById('assetLocationDesc').value : '';
@@ -5233,4 +5266,438 @@ initializeApp = async function() {
     }
     
     hideLoading();
+    
+    // Initialize enhanced searchable dropdowns after everything is loaded
+    setTimeout(() => {
+        initializeAllSearchableDropdowns();
+    }, 500);
+};
+
+// =============================================
+// Enhanced Searchable Dropdown System
+// نظام القوائم المنسدلة المحسنة مع البحث
+// =============================================
+
+/**
+ * تهيئة جميع القوائم المنسدلة القابلة للبحث
+ */
+function initializeAllSearchableDropdowns() {
+    // تحديد القوائم المنسدلة المراد تحسينها
+    const dropdownConfigs = [
+        // نموذج الأصول - Asset Form
+        { selectId: 'assetNameSelect', placeholder: 'اختر أو ابحث عن اسم الأصل...' },
+        { selectId: 'assetCategory', placeholder: 'اختر أو ابحث في الفئة الرئيسية...' },
+        { selectId: 'assetCategory2', placeholder: 'اختر أو ابحث في الفئة الفرعية...' },
+        { selectId: 'assetCategory3', placeholder: 'اختر أو ابحث في الفئة التفصيلية...' },
+        { selectId: 'assetDepartment', placeholder: 'اختر أو ابحث في الإدارة/القسم...' },
+        { selectId: 'assetBuilding', placeholder: 'اختر أو ابحث في المبنى...' },
+        { selectId: 'assetFloor', placeholder: 'اختر أو ابحث في الدور/الطابق...' },
+        { selectId: 'assetRoom', placeholder: 'اختر أو ابحث في الغرفة/المكتب...' },
+        { selectId: 'assetLocation', placeholder: 'اختر أو ابحث في الموقع التفصيلي...' },
+        { selectId: 'assetAssignee', placeholder: 'اختر أو ابحث في المستخدم/المسؤول...' },
+        { selectId: 'assetSupplierSelect', placeholder: 'اختر أو ابحث في المورد...' },
+        { selectId: 'assetCondition', placeholder: 'اختر الحالة...' },
+        
+        // فلاتر البحث المتقدم - Advanced Search Filters
+        { selectId: 'filterAssetName', placeholder: 'ابحث في أسماء الأصول...', isFilter: true },
+        { selectId: 'categoryFilter', placeholder: 'ابحث في الفئات الرئيسية...', isFilter: true },
+        { selectId: 'filterCategory2', placeholder: 'ابحث في الفئات الفرعية...', isFilter: true },
+        { selectId: 'filterCategory3', placeholder: 'ابحث في الفئات التفصيلية...', isFilter: true },
+        { selectId: 'departmentFilter', placeholder: 'ابحث في الإدارات...', isFilter: true },
+        { selectId: 'filterBuilding', placeholder: 'ابحث في المباني...', isFilter: true },
+        { selectId: 'filterFloor', placeholder: 'ابحث في الطوابق...', isFilter: true },
+        { selectId: 'filterRoom', placeholder: 'ابحث في الغرف...', isFilter: true },
+        { selectId: 'filterLocation', placeholder: 'ابحث في المواقع...', isFilter: true },
+        { selectId: 'filterAssignee', placeholder: 'ابحث في المستخدمين...', isFilter: true },
+        { selectId: 'conditionFilter', placeholder: 'ابحث في الحالات...', isFilter: true },
+        { selectId: 'filterSupplier', placeholder: 'ابحث في الموردين...', isFilter: true },
+        
+        // قوائم أخرى - Other dropdowns
+        { selectId: 'inventoryDepartment', placeholder: 'اختر الإدارة...' },
+        { selectId: 'maintenanceAsset', placeholder: 'اختر الأصل...' },
+        { selectId: 'parentDepartment', placeholder: 'اختر الإدارة الرئيسية...' }
+    ];
+    
+    dropdownConfigs.forEach(config => {
+        const select = document.getElementById(config.selectId);
+        if (select && !select.dataset.enhancedSearchable) {
+            createSearchableDropdown(select, config);
+        }
+    });
+    
+    console.log('Enhanced searchable dropdowns initialized');
+}
+
+/**
+ * إنشاء قائمة منسدلة قابلة للبحث
+ */
+function createSearchableDropdown(originalSelect, config) {
+    if (originalSelect.dataset.enhancedSearchable === 'true') return;
+    
+    const { placeholder, isFilter = false } = config;
+    
+    // حفظ الخيارات الأصلية
+    const originalOptions = [];
+    Array.from(originalSelect.options).forEach(opt => {
+        originalOptions.push({
+            value: opt.value,
+            text: opt.textContent,
+            selected: opt.selected
+        });
+    });
+    
+    // إنشاء الهيكل الجديد
+    const wrapper = document.createElement('div');
+    wrapper.className = 'searchable-dropdown-wrapper';
+    wrapper.id = `${originalSelect.id}_wrapper`;
+    
+    // زر التفعيل
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'searchable-dropdown-trigger';
+    trigger.innerHTML = `
+        <span class="selected-text placeholder">${placeholder}</span>
+        <span class="searchable-dropdown-clear" title="مسح الاختيار">
+            <i class="fas fa-times"></i>
+        </span>
+        <span class="dropdown-arrow">
+            <i class="fas fa-chevron-down"></i>
+        </span>
+    `;
+    
+    // لوحة القائمة المنسدلة
+    const panel = document.createElement('div');
+    panel.className = 'searchable-dropdown-panel';
+    panel.innerHTML = `
+        <div class="searchable-dropdown-search">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" placeholder="اكتب للبحث..." autocomplete="off">
+        </div>
+        <div class="searchable-dropdown-options"></div>
+    `;
+    
+    // خلفية للموبايل
+    const backdrop = document.createElement('div');
+    backdrop.className = 'searchable-dropdown-backdrop';
+    
+    // إخفاء القائمة الأصلية
+    originalSelect.style.display = 'none';
+    
+    // إدراج العناصر الجديدة
+    originalSelect.parentNode.insertBefore(wrapper, originalSelect);
+    wrapper.appendChild(trigger);
+    wrapper.appendChild(panel);
+    wrapper.appendChild(backdrop);
+    wrapper.appendChild(originalSelect);
+    
+    // العناصر الداخلية
+    const searchInput = panel.querySelector('input');
+    const optionsContainer = panel.querySelector('.searchable-dropdown-options');
+    const selectedText = trigger.querySelector('.selected-text');
+    const clearBtn = trigger.querySelector('.searchable-dropdown-clear');
+    
+    // حالة القائمة
+    let isOpen = false;
+    let selectedValue = originalSelect.value;
+    let keyboardIndex = -1;
+    
+    // تحديث الخيارات المتاحة
+    function updateAvailableOptions() {
+        originalOptions.length = 0;
+        Array.from(originalSelect.options).forEach(opt => {
+            originalOptions.push({
+                value: opt.value,
+                text: opt.textContent,
+                selected: opt.selected
+            });
+        });
+    }
+    
+    // تصيير الخيارات
+    function renderOptions(filter = '') {
+        const filterLower = filter.toLowerCase().trim();
+        optionsContainer.innerHTML = '';
+        keyboardIndex = -1;
+        
+        let hasMatches = false;
+        let optionIndex = 0;
+        
+        originalOptions.forEach((opt, index) => {
+            // تخطي الخيار الفارغ إذا كان هناك فلتر
+            if (opt.value === '' && filterLower) return;
+            
+            // التحقق من المطابقة
+            if (filterLower && !opt.text.toLowerCase().includes(filterLower)) return;
+            
+            hasMatches = true;
+            
+            const optionEl = document.createElement('div');
+            optionEl.className = 'searchable-dropdown-option';
+            optionEl.dataset.value = opt.value;
+            optionEl.dataset.index = optionIndex++;
+            
+            if (opt.value === selectedValue) {
+                optionEl.classList.add('selected');
+            }
+            
+            // تمييز نص البحث
+            let displayText = opt.text;
+            if (filterLower && opt.text.toLowerCase().includes(filterLower)) {
+                const regex = new RegExp(`(${escapeRegex(filterLower)})`, 'gi');
+                displayText = opt.text.replace(regex, '<mark class="bg-yellow-200">$1</mark>');
+            }
+            
+            optionEl.innerHTML = `
+                <span class="option-icon">
+                    ${opt.value === selectedValue ? '<i class="fas fa-check"></i>' : '<i class="fas fa-circle"></i>'}
+                </span>
+                <span class="option-text">${displayText}</span>
+            `;
+            
+            // حدث النقر
+            optionEl.addEventListener('click', () => selectOption(opt.value, opt.text));
+            
+            optionsContainer.appendChild(optionEl);
+        });
+        
+        // لا توجد نتائج
+        if (!hasMatches) {
+            optionsContainer.innerHTML = `
+                <div class="searchable-dropdown-no-results">
+                    <i class="fas fa-search"></i>
+                    لا توجد نتائج لـ "${filter}"
+                </div>
+            `;
+        }
+    }
+    
+    // اختيار خيار
+    function selectOption(value, text) {
+        selectedValue = value;
+        originalSelect.value = value;
+        
+        if (value) {
+            selectedText.textContent = text;
+            selectedText.classList.remove('placeholder');
+            trigger.classList.add('has-value');
+        } else {
+            selectedText.textContent = placeholder;
+            selectedText.classList.add('placeholder');
+            trigger.classList.remove('has-value');
+        }
+        
+        // إطلاق حدث التغيير
+        originalSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        
+        closeDropdown();
+        
+        // تحديث الفلاتر إذا كانت قائمة فلتر
+        if (isFilter) {
+            filterAssets();
+        }
+    }
+    
+    // فتح القائمة
+    function openDropdown() {
+        if (isOpen) return;
+        isOpen = true;
+        
+        updateAvailableOptions();
+        trigger.classList.add('active');
+        panel.classList.add('open');
+        backdrop.classList.add('open');
+        
+        searchInput.value = '';
+        renderOptions();
+        
+        setTimeout(() => searchInput.focus(), 50);
+    }
+    
+    // إغلاق القائمة
+    function closeDropdown() {
+        if (!isOpen) return;
+        isOpen = false;
+        
+        trigger.classList.remove('active');
+        panel.classList.remove('open');
+        backdrop.classList.remove('open');
+        searchInput.value = '';
+        keyboardIndex = -1;
+    }
+    
+    // التنقل بلوحة المفاتيح
+    function handleKeydown(e) {
+        const options = optionsContainer.querySelectorAll('.searchable-dropdown-option');
+        
+        switch (e.key) {
+            case 'ArrowDown':
+                e.preventDefault();
+                keyboardIndex = Math.min(keyboardIndex + 1, options.length - 1);
+                updateKeyboardFocus(options);
+                break;
+                
+            case 'ArrowUp':
+                e.preventDefault();
+                keyboardIndex = Math.max(keyboardIndex - 1, 0);
+                updateKeyboardFocus(options);
+                break;
+                
+            case 'Enter':
+                e.preventDefault();
+                if (keyboardIndex >= 0 && options[keyboardIndex]) {
+                    options[keyboardIndex].click();
+                }
+                break;
+                
+            case 'Escape':
+                closeDropdown();
+                trigger.focus();
+                break;
+        }
+    }
+    
+    // تحديث تركيز لوحة المفاتيح
+    function updateKeyboardFocus(options) {
+        options.forEach((opt, i) => {
+            opt.classList.toggle('keyboard-focus', i === keyboardIndex);
+            if (i === keyboardIndex) {
+                opt.scrollIntoView({ block: 'nearest' });
+            }
+        });
+    }
+    
+    // الأحداث
+    trigger.addEventListener('click', (e) => {
+        if (e.target.closest('.searchable-dropdown-clear')) {
+            e.stopPropagation();
+            selectOption('', placeholder);
+            return;
+        }
+        
+        if (isOpen) {
+            closeDropdown();
+        } else {
+            openDropdown();
+        }
+    });
+    
+    searchInput.addEventListener('input', () => {
+        renderOptions(searchInput.value);
+    });
+    
+    searchInput.addEventListener('keydown', handleKeydown);
+    
+    backdrop.addEventListener('click', closeDropdown);
+    
+    // إغلاق عند النقر خارج القائمة
+    document.addEventListener('click', (e) => {
+        if (isOpen && !wrapper.contains(e.target)) {
+            closeDropdown();
+        }
+    });
+    
+    // تحديث عند تغيير القائمة الأصلية
+    const observer = new MutationObserver(() => {
+        updateAvailableOptions();
+        
+        // تحديث القيمة المحددة
+        const currentOption = originalOptions.find(opt => opt.value === originalSelect.value);
+        if (currentOption && currentOption.value) {
+            selectedText.textContent = currentOption.text;
+            selectedText.classList.remove('placeholder');
+            trigger.classList.add('has-value');
+            selectedValue = currentOption.value;
+        } else {
+            selectedText.textContent = placeholder;
+            selectedText.classList.add('placeholder');
+            trigger.classList.remove('has-value');
+            selectedValue = '';
+        }
+    });
+    
+    observer.observe(originalSelect, { childList: true, subtree: true });
+    
+    // تحديث القيمة الأولية
+    if (originalSelect.value) {
+        const currentOption = originalOptions.find(opt => opt.value === originalSelect.value);
+        if (currentOption) {
+            selectedText.textContent = currentOption.text;
+            selectedText.classList.remove('placeholder');
+            trigger.classList.add('has-value');
+            selectedValue = currentOption.value;
+        }
+    }
+    
+    // وضع علامة أن القائمة تم تحسينها
+    originalSelect.dataset.enhancedSearchable = 'true';
+    
+    return wrapper;
+}
+
+/**
+ * تهرب من الأحرف الخاصة في التعبير النمطي
+ */
+function escapeRegex(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * تحديث قائمة منسدلة معينة
+ */
+function refreshSearchableDropdown(selectId) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    
+    const wrapper = document.getElementById(`${selectId}_wrapper`);
+    if (wrapper) {
+        const trigger = wrapper.querySelector('.searchable-dropdown-trigger');
+        const selectedText = trigger.querySelector('.selected-text');
+        
+        // تحديث القيمة المعروضة
+        const selectedOption = select.options[select.selectedIndex];
+        if (selectedOption && selectedOption.value) {
+            selectedText.textContent = selectedOption.text;
+            selectedText.classList.remove('placeholder');
+            trigger.classList.add('has-value');
+        } else {
+            const placeholder = trigger.dataset.placeholder || 'اختر...';
+            selectedText.textContent = placeholder;
+            selectedText.classList.add('placeholder');
+            trigger.classList.remove('has-value');
+        }
+    }
+}
+
+/**
+ * إضافة دالة لإعادة تهيئة القوائم المنسدلة بعد تحديث البيانات
+ */
+function reinitializeDropdownsAfterDataUpdate() {
+    // تحديث القوائم المنسدلة في نموذج الأصول
+    const assetFormDropdowns = [
+        'assetNameSelect', 'assetCategory', 'assetCategory2', 'assetCategory3',
+        'assetDepartment', 'assetBuilding', 'assetFloor', 'assetLocation',
+        'assetAssignee', 'assetSupplierSelect'
+    ];
+    
+    assetFormDropdowns.forEach(id => refreshSearchableDropdown(id));
+    
+    // تحديث فلاتر البحث المتقدم
+    const filterDropdowns = [
+        'filterAssetName', 'categoryFilter', 'filterCategory2', 'filterCategory3',
+        'departmentFilter', 'filterBuilding', 'filterFloor', 'filterRoom',
+        'filterLocation', 'filterAssignee', 'conditionFilter', 'filterSupplier'
+    ];
+    
+    filterDropdowns.forEach(id => refreshSearchableDropdown(id));
+}
+
+// تحديث دالة populateFilters لتحديث القوائم المنسدلة المحسنة
+const originalPopulateFilters = populateFilters;
+populateFilters = function() {
+    originalPopulateFilters();
+    
+    // تأخير قصير لضمان تحديث DOM
+    setTimeout(() => {
+        reinitializeDropdownsAfterDataUpdate();
+    }, 100);
 };

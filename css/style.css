@@ -953,3 +953,398 @@ tbody tr:hover .fa-edit {
 #assetSearch.searching {
     animation: searchPulse 1s infinite;
 }
+
+/* =========================================
+   Enhanced Searchable Dropdown Component
+   نظام القوائم المنسدلة المحسنة مع البحث
+   ========================================= */
+
+/* Container for the searchable select */
+.searchable-dropdown-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+/* Main select trigger button */
+.searchable-dropdown-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 10px 14px;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
+    text-align: right;
+    min-height: 44px;
+}
+
+.searchable-dropdown-trigger:hover {
+    border-color: #3b82f6;
+}
+
+.searchable-dropdown-trigger:focus,
+.searchable-dropdown-trigger.active {
+    border-color: #1e40af;
+    box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.15);
+    outline: none;
+}
+
+.searchable-dropdown-trigger .selected-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #374151;
+}
+
+.searchable-dropdown-trigger .selected-text.placeholder {
+    color: #9ca3af;
+}
+
+.searchable-dropdown-trigger .dropdown-arrow {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease;
+    color: #6b7280;
+}
+
+.searchable-dropdown-trigger.active .dropdown-arrow {
+    transform: rotate(180deg);
+}
+
+/* Dropdown panel */
+.searchable-dropdown-panel {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: 0;
+    z-index: 1000;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    margin-top: 4px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.2s ease;
+    overflow: hidden;
+}
+
+.searchable-dropdown-panel.open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+/* Search input inside dropdown */
+.searchable-dropdown-search {
+    padding: 12px;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f9fafb;
+}
+
+.searchable-dropdown-search input {
+    width: 100%;
+    padding: 10px 14px;
+    padding-right: 40px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    font-size: 14px;
+    direction: rtl;
+    transition: all 0.2s ease;
+}
+
+.searchable-dropdown-search input:focus {
+    border-color: #1e40af;
+    box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+    outline: none;
+}
+
+.searchable-dropdown-search input::placeholder {
+    color: #9ca3af;
+}
+
+.searchable-dropdown-search .search-icon {
+    position: absolute;
+    right: 24px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9ca3af;
+    font-size: 14px;
+    pointer-events: none;
+}
+
+.searchable-dropdown-search {
+    position: relative;
+}
+
+/* Options list */
+.searchable-dropdown-options {
+    max-height: 240px;
+    overflow-y: auto;
+    padding: 8px 0;
+}
+
+.searchable-dropdown-options::-webkit-scrollbar {
+    width: 6px;
+}
+
+.searchable-dropdown-options::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+
+.searchable-dropdown-options::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+.searchable-dropdown-options::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Individual option */
+.searchable-dropdown-option {
+    display: flex;
+    align-items: center;
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-size: 14px;
+    color: #374151;
+}
+
+.searchable-dropdown-option:hover {
+    background: #f3f4f6;
+}
+
+.searchable-dropdown-option.selected {
+    background: #eff6ff;
+    color: #1e40af;
+    font-weight: 600;
+}
+
+.searchable-dropdown-option.highlighted {
+    background: #fef3c7;
+}
+
+.searchable-dropdown-option .option-icon {
+    width: 24px;
+    height: 24px;
+    margin-left: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: #e5e7eb;
+    color: #6b7280;
+    font-size: 12px;
+}
+
+.searchable-dropdown-option.selected .option-icon {
+    background: #1e40af;
+    color: white;
+}
+
+/* No results message */
+.searchable-dropdown-no-results {
+    padding: 20px;
+    text-align: center;
+    color: #9ca3af;
+    font-size: 14px;
+}
+
+.searchable-dropdown-no-results i {
+    display: block;
+    font-size: 24px;
+    margin-bottom: 8px;
+    opacity: 0.5;
+}
+
+/* Group header */
+.searchable-dropdown-group {
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #6b7280;
+    text-transform: uppercase;
+    background: #f9fafb;
+    border-top: 1px solid #e5e7eb;
+    margin-top: 4px;
+}
+
+.searchable-dropdown-group:first-child {
+    border-top: none;
+    margin-top: 0;
+}
+
+/* Clear selection button */
+.searchable-dropdown-clear {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    margin-left: 8px;
+    border-radius: 50%;
+    background: #f3f4f6;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.searchable-dropdown-clear:hover {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.searchable-dropdown-trigger.has-value .searchable-dropdown-clear {
+    display: flex;
+}
+
+/* Loading state */
+.searchable-dropdown-loading {
+    padding: 20px;
+    text-align: center;
+    color: #6b7280;
+}
+
+.searchable-dropdown-loading i {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .searchable-dropdown-panel {
+        position: fixed;
+        top: auto;
+        bottom: 0;
+        right: 0;
+        left: 0;
+        margin: 0;
+        border-radius: 20px 20px 0 0;
+        max-height: 70vh;
+    }
+    
+    .searchable-dropdown-panel.open {
+        transform: translateY(0);
+    }
+    
+    .searchable-dropdown-options {
+        max-height: calc(70vh - 80px);
+    }
+    
+    /* Mobile backdrop */
+    .searchable-dropdown-backdrop {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.2s ease;
+    }
+    
+    .searchable-dropdown-backdrop.open {
+        opacity: 1;
+        visibility: visible;
+    }
+}
+
+/* Dark mode support (if needed) */
+@media (prefers-color-scheme: dark) {
+    .searchable-dropdown-trigger,
+    .searchable-dropdown-panel {
+        /* Add dark mode styles if needed */
+    }
+}
+
+/* RTL specific adjustments */
+[dir="rtl"] .searchable-dropdown-trigger {
+    text-align: right;
+}
+
+[dir="rtl"] .searchable-dropdown-option .option-icon {
+    margin-left: 10px;
+    margin-right: 0;
+}
+
+/* Animation for options appearing */
+.searchable-dropdown-option {
+    animation: optionFadeIn 0.15s ease forwards;
+    opacity: 0;
+}
+
+@keyframes optionFadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Keyboard navigation highlight */
+.searchable-dropdown-option.keyboard-focus {
+    background: #e0f2fe;
+    outline: 2px solid #3b82f6;
+    outline-offset: -2px;
+}
+
+/* Badge for selected count (for multi-select future) */
+.searchable-dropdown-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    background: #1e40af;
+    color: white;
+    border-radius: 11px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-left: 8px;
+}
+
+/* Enhanced filter dropdowns in advanced search */
+#advancedSearchPanel .searchable-dropdown-wrapper {
+    min-width: 0;
+}
+
+#advancedSearchPanel .searchable-dropdown-trigger {
+    padding: 8px 12px;
+    font-size: 13px;
+    min-height: 40px;
+}
+
+#advancedSearchPanel .searchable-dropdown-option {
+    padding: 8px 14px;
+    font-size: 13px;
+}
+
+/* Modal form searchable dropdowns */
+#assetForm .searchable-dropdown-trigger {
+    background: white;
+}
+
+#assetForm .searchable-dropdown-panel {
+    z-index: 1100;
+}
