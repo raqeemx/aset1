@@ -1348,3 +1348,233 @@ tbody tr:hover .fa-edit {
 #assetForm .searchable-dropdown-panel {
     z-index: 1100;
 }
+
+/* =========================================
+   AI Asset Recognition Styles
+   أنماط التعرف على الأصول بالذكاء الاصطناعي
+   ========================================= */
+
+/* AI Modal Header Gradient */
+#aiAssetModal .bg-gradient-to-l {
+    background: linear-gradient(to left, #7c3aed, #2563eb);
+}
+
+/* Step Indicator */
+#aiAssetModal .step-indicator {
+    transition: all 0.3s ease;
+}
+
+/* Camera Container */
+#aiCameraContainer video {
+    max-height: 400px;
+    object-fit: contain;
+}
+
+/* Capture Button Animation */
+#aiCameraContainer button:first-of-type:active {
+    transform: scale(0.95);
+}
+
+#aiCameraContainer button:first-of-type div {
+    transition: all 0.15s ease;
+}
+
+#aiCameraContainer button:first-of-type:hover div {
+    transform: scale(0.9);
+}
+
+/* Image Preview Grid */
+#aiImagePreviewContainer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+#aiImagePreviewContainer img {
+    transition: all 0.2s ease;
+}
+
+#aiImagePreviewContainer img:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Analysis Progress Animation */
+#aiStep2 .animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+#aiStep2 .animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* Progress Bar */
+#aiProgressBar {
+    transition: width 0.5s ease;
+}
+
+/* Confidence Level Colors */
+#aiConfidenceLevel.text-green-600 {
+    color: #059669;
+}
+
+#aiConfidenceLevel.text-yellow-600 {
+    color: #d97706;
+}
+
+#aiConfidenceLevel.text-red-600 {
+    color: #dc2626;
+}
+
+/* Detected Features Tags */
+#aiDetectedFeatures span {
+    animation: fadeIn 0.3s ease forwards;
+}
+
+/* AI Form Fields */
+#aiStep3 input,
+#aiStep3 select,
+#aiStep3 textarea {
+    transition: all 0.2s ease;
+}
+
+#aiStep3 input:focus,
+#aiStep3 select:focus,
+#aiStep3 textarea:focus {
+    border-color: #7c3aed;
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+}
+
+/* AI Setup Modal */
+#aiSetupModal input:focus,
+#aiSetupModal select:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* Flash Animation for Photo Capture */
+@keyframes flash {
+    0% {
+        opacity: 0.8;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
+/* Dropdown Menu Animation */
+.group:hover .group-hover\:opacity-100 {
+    opacity: 1;
+    visibility: visible;
+}
+
+.group:hover .group-hover\:visible {
+    visibility: visible;
+}
+
+/* AI Button Gradient */
+#aiAnalyzeBtn:not(:disabled) {
+    background: linear-gradient(135deg, #7c3aed, #6366f1);
+}
+
+#aiAnalyzeBtn:not(:disabled):hover {
+    background: linear-gradient(135deg, #6d28d9, #4f46e5);
+}
+
+/* Result Images Preview */
+#aiResultImagesPreview img {
+    border: 2px solid #e5e7eb;
+    transition: all 0.2s ease;
+}
+
+#aiResultImagesPreview img:hover {
+    border-color: #7c3aed;
+    transform: scale(1.1);
+}
+
+/* Mobile Responsive for AI Modal */
+@media (max-width: 768px) {
+    #aiAssetModal > div {
+        max-height: 100vh;
+        border-radius: 0;
+    }
+    
+    #aiStep1 .grid {
+        grid-template-columns: 1fr;
+    }
+    
+    #aiCameraContainer video {
+        max-height: 300px;
+    }
+    
+    #aiImagePreviewContainer img {
+        width: 60px;
+        height: 60px;
+    }
+    
+    #aiStep3 .grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Print Styles for AI Results */
+@media print {
+    #aiAssetModal {
+        display: none !important;
+    }
+}
+
+/* AI Settings Button in Sidebar */
+.ai-settings-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: linear-gradient(135deg, #7c3aed, #6366f1);
+    color: white;
+    border-radius: 10px;
+    font-size: 13px;
+    transition: all 0.2s ease;
+}
+
+.ai-settings-btn:hover {
+    background: linear-gradient(135deg, #6d28d9, #4f46e5);
+    transform: translateY(-1px);
+}
+
+/* Quick Add Dropdown */
+.group > div {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.2s ease;
+}
+
+.group:hover > div {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+/* New Badge Animation */
+.group button span.bg-purple-100 {
+    animation: badgePulse 2s infinite;
+}
+
+@keyframes badgePulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}

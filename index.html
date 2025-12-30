@@ -191,11 +191,25 @@
                         <span class="absolute -top-1 -left-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">3</span>
                     </button>
                     
-                    <!-- Quick Add -->
-                    <button onclick="openAssetModal()" class="bg-gov-blue text-white px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-gov-blue-light transition-colors">
-                        <i class="fas fa-plus"></i>
-                        <span class="hidden sm:inline">إضافة أصل</span>
-                    </button>
+                    <!-- Quick Add with Dropdown -->
+                    <div class="relative group">
+                        <button class="bg-gov-blue text-white px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-gov-blue-light transition-colors">
+                            <i class="fas fa-plus"></i>
+                            <span class="hidden sm:inline">إضافة أصل</span>
+                            <i class="fas fa-chevron-down text-xs mr-1"></i>
+                        </button>
+                        <div class="absolute left-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                            <button onclick="openAssetModal()" class="w-full px-4 py-3 text-right text-gray-700 hover:bg-gray-50 flex items-center gap-3 rounded-t-xl">
+                                <i class="fas fa-edit text-blue-500 w-5"></i>
+                                <span>إضافة يدوية</span>
+                            </button>
+                            <button onclick="openAIAssetModal()" class="w-full px-4 py-3 text-right text-gray-700 hover:bg-gray-50 flex items-center gap-3 rounded-b-xl border-t border-gray-100">
+                                <i class="fas fa-robot text-purple-500 w-5"></i>
+                                <span>إضافة بالذكاء الاصطناعي</span>
+                                <span class="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full">جديد</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </header>
@@ -1522,6 +1536,340 @@
             <p class="text-gray-600">جاري التحميل...</p>
         </div>
     </div>
+    
+    <!-- AI Asset Recognition Modal -->
+    <div id="aiAssetModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-hidden">
+            <!-- Header -->
+            <div class="bg-gradient-to-l from-purple-600 to-blue-600 text-white p-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-white/20 p-3 rounded-xl">
+                            <i class="fas fa-robot text-2xl"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold">إضافة أصل بالذكاء الاصطناعي</h2>
+                            <p class="text-blue-100 text-sm">التقط صور الأصل ودع الذكاء الاصطناعي يملأ البيانات</p>
+                        </div>
+                    </div>
+                    <button onclick="closeAIAssetModal()" class="text-white/80 hover:text-white text-2xl">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <!-- Step Indicator -->
+                <div class="flex items-center justify-center gap-4 mt-6">
+                    <div class="flex items-center gap-2">
+                        <div id="stepIndicator1" class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold">1</div>
+                        <span class="text-sm text-white/80">التقاط الصور</span>
+                    </div>
+                    <div class="w-12 h-0.5 bg-white/30"></div>
+                    <div class="flex items-center gap-2">
+                        <div id="stepIndicator2" class="w-8 h-8 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center text-sm font-bold">2</div>
+                        <span class="text-sm text-white/80">تحليل الصور</span>
+                    </div>
+                    <div class="w-12 h-0.5 bg-white/30"></div>
+                    <div class="flex items-center gap-2">
+                        <div id="stepIndicator3" class="w-8 h-8 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center text-sm font-bold">3</div>
+                        <span class="text-sm text-white/80">مراجعة وحفظ</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Content -->
+            <div class="p-6 overflow-y-auto" style="max-height: calc(95vh - 200px);">
+                
+                <!-- Step 1: Image Capture -->
+                <div id="aiStep1" class="ai-step">
+                    <div class="text-center mb-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">التقط صور الأصل</h3>
+                        <p class="text-gray-600">يمكنك التقاط حتى 5 صور من زوايا مختلفة للحصول على تحليل أدق</p>
+                    </div>
+                    
+                    <!-- Input Options -->
+                    <div id="aiInputOptions" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        <button onclick="startAICamera()" class="p-6 border-2 border-dashed border-blue-300 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all group">
+                            <div class="text-center">
+                                <div class="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:bg-blue-200 transition-colors">
+                                    <i class="fas fa-camera text-2xl text-blue-600"></i>
+                                </div>
+                                <h4 class="font-bold text-gray-800">فتح الكاميرا</h4>
+                                <p class="text-sm text-gray-500 mt-1">التقط صور مباشرة</p>
+                            </div>
+                        </button>
+                        
+                        <button onclick="triggerAIFileUpload()" class="p-6 border-2 border-dashed border-green-300 rounded-xl hover:border-green-500 hover:bg-green-50 transition-all group">
+                            <div class="text-center">
+                                <div class="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:bg-green-200 transition-colors">
+                                    <i class="fas fa-cloud-upload-alt text-2xl text-green-600"></i>
+                                </div>
+                                <h4 class="font-bold text-gray-800">رفع من الجهاز</h4>
+                                <p class="text-sm text-gray-500 mt-1">اختر صور موجودة</p>
+                            </div>
+                        </button>
+                    </div>
+                    
+                    <!-- Hidden File Input -->
+                    <input type="file" id="aiFileInput" accept="image/*" multiple class="hidden" onchange="handleAIFileUpload(event)">
+                    
+                    <!-- Camera Container -->
+                    <div id="aiCameraContainer" class="hidden mb-6">
+                        <div class="relative bg-black rounded-xl overflow-hidden">
+                            <video id="aiCameraVideo" autoplay playsinline class="w-full max-h-96 object-contain"></video>
+                            <div class="absolute bottom-4 left-0 right-0 flex items-center justify-center gap-4">
+                                <button onclick="captureAIPhoto()" class="bg-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center hover:bg-gray-100 transition-colors">
+                                    <div class="w-12 h-12 bg-red-500 rounded-full"></div>
+                                </button>
+                            </div>
+                            <button onclick="stopAICamera()" class="absolute top-4 right-4 bg-black/50 text-white px-3 py-2 rounded-lg hover:bg-black/70">
+                                <i class="fas fa-times ml-1"></i> إغلاق
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Image Preview -->
+                    <div class="bg-gray-50 rounded-xl p-4 mb-6">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="font-medium text-gray-700">الصور الملتقطة</h4>
+                            <span id="aiImageCounter" class="text-sm text-gray-500">0 / 5</span>
+                        </div>
+                        <div id="aiImagePreviewContainer" class="flex flex-wrap gap-3 min-h-[100px] items-center justify-center">
+                            <p class="text-gray-400 text-sm">لم يتم التقاط أي صور بعد</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Action Button -->
+                    <div class="flex justify-between">
+                        <button onclick="closeAIAssetModal()" class="px-6 py-2 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50">
+                            إلغاء
+                        </button>
+                        <button id="aiAnalyzeBtn" onclick="analyzeAssetImages()" disabled class="px-6 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                            <i class="fas fa-magic"></i>
+                            تحليل بالذكاء الاصطناعي
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Step 2: Analysis Progress -->
+                <div id="aiStep2" class="ai-step hidden">
+                    <div class="text-center py-12">
+                        <div class="relative w-32 h-32 mx-auto mb-6">
+                            <div class="absolute inset-0 border-4 border-purple-200 rounded-full"></div>
+                            <div class="absolute inset-0 border-4 border-purple-600 rounded-full animate-spin" style="border-top-color: transparent;"></div>
+                            <div class="absolute inset-4 bg-purple-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-robot text-4xl text-purple-600 animate-pulse"></i>
+                            </div>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">جاري التحليل...</h3>
+                        <p id="aiStatusText" class="text-gray-600 mb-6">يتم إرسال الصور للذكاء الاصطناعي</p>
+                        
+                        <!-- Progress Bar -->
+                        <div class="max-w-md mx-auto bg-gray-200 rounded-full h-3">
+                            <div id="aiProgressBar" class="bg-gradient-to-l from-purple-600 to-blue-600 h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Step 3: Review Results -->
+                <div id="aiStep3" class="ai-step hidden">
+                    <div id="aiAnalysisResults">
+                        <!-- Confidence Score -->
+                        <div class="bg-gradient-to-l from-purple-50 to-blue-50 rounded-xl p-4 mb-6 flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="bg-purple-100 p-3 rounded-xl">
+                                    <i class="fas fa-chart-line text-purple-600 text-xl"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-600">دقة التحليل</p>
+                                    <p id="aiConfidenceLevel" class="text-2xl font-bold text-green-600">85%</p>
+                                </div>
+                            </div>
+                            <div id="aiResultImagesPreview" class="flex gap-2"></div>
+                        </div>
+                        
+                        <!-- Detected Features -->
+                        <div class="mb-6">
+                            <h4 class="font-medium text-gray-700 mb-2">الميزات المكتشفة:</h4>
+                            <div id="aiDetectedFeatures" class="flex flex-wrap gap-2"></div>
+                        </div>
+                        
+                        <!-- Form Fields -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Asset Name -->
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">اسم الأصل *</label>
+                                <input type="text" id="aiResultName" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                            </div>
+                            
+                            <!-- Asset Code -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">رمز الأصل</label>
+                                <input type="text" id="aiResultCode" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                            </div>
+                            
+                            <!-- Serial Number -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">الرقم التسلسلي</label>
+                                <input type="text" id="aiResultSerial" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                            </div>
+                            
+                            <!-- Category -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">الفئة الرئيسية *</label>
+                                <select id="aiResultCategory" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                                    <option value="">اختر الفئة</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Category 2 -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">الفئة الفرعية</label>
+                                <select id="aiResultCategory2" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                                    <option value="">اختر الفئة الفرعية</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Category 3 -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">الفئة التفصيلية</label>
+                                <select id="aiResultCategory3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                                    <option value="">اختر الفئة التفصيلية</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Condition -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">حالة الأصل *</label>
+                                <select id="aiResultCondition" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                                    <option value="ممتاز">ممتاز</option>
+                                    <option value="جيد" selected>جيد</option>
+                                    <option value="مقبول">مقبول</option>
+                                    <option value="يحتاج صيانة">يحتاج صيانة</option>
+                                    <option value="تالف">تالف</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Brand -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">العلامة التجارية</label>
+                                <input type="text" id="aiResultBrand" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                            </div>
+                            
+                            <!-- Model -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">الموديل</label>
+                                <input type="text" id="aiResultModel" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                            </div>
+                            
+                            <!-- Department -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">الإدارة</label>
+                                <select id="aiResultDepartment" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                                    <option value="">اختر الإدارة</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Building -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">المبنى</label>
+                                <select id="aiResultBuilding" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                                    <option value="">اختر المبنى</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Floor -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">الطابق</label>
+                                <select id="aiResultFloor" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                                    <option value="">اختر الطابق</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Room -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">الغرفة/المكتب</label>
+                                <input type="text" id="aiResultRoom" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                            </div>
+                            
+                            <!-- Location -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">الموقع التفصيلي</label>
+                                <input type="text" id="aiResultLocation" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                            </div>
+                            
+                            <!-- Purchase Price -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">سعر الشراء (ريال)</label>
+                                <input type="number" id="aiResultPrice" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" step="0.01">
+                            </div>
+                            
+                            <!-- Current Value -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">القيمة الحالية (ريال)</label>
+                                <input type="number" id="aiResultCurrentValue" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" step="0.01">
+                            </div>
+                            
+                            <!-- Purchase Date -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">تاريخ الشراء</label>
+                                <input type="date" id="aiResultPurchaseDate" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                            </div>
+                            
+                            <!-- Warranty -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">الضمان</label>
+                                <input type="text" id="aiResultWarranty" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" placeholder="مثال: سنتين">
+                            </div>
+                            
+                            <!-- Supplier -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">المورد</label>
+                                <input type="text" id="aiResultSupplier" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                            </div>
+                            
+                            <!-- Assignee -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">المسؤول/المستلم</label>
+                                <input type="text" id="aiResultAssignee" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                            </div>
+                            
+                            <!-- Technical Data -->
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">البيانات الفنية</label>
+                                <textarea id="aiResultTechnicalData" rows="2" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" placeholder="المواصفات الفنية للأصل..."></textarea>
+                            </div>
+                            
+                            <!-- Notes -->
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">ملاحظات</label>
+                                <textarea id="aiResultNotes" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"></textarea>
+                            </div>
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div class="flex justify-between mt-6 pt-4 border-t border-gray-200">
+                            <button onclick="retryAIAnalysis()" class="px-6 py-2 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                                <i class="fas fa-redo"></i>
+                                إعادة التحليل
+                            </button>
+                            <div class="flex gap-3">
+                                <button onclick="closeAIAssetModal()" class="px-6 py-2 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50">
+                                    إلغاء
+                                </button>
+                                <button onclick="saveAIAnalyzedAsset()" class="px-6 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 flex items-center gap-2">
+                                    <i class="fas fa-save"></i>
+                                    حفظ الأصل
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- AI Asset Recognition JavaScript -->
+    <script src="js/ai-asset-recognition.js"></script>
     
     <!-- Custom JavaScript -->
     <script src="js/app.js"></script>
