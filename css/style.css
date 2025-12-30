@@ -661,3 +661,164 @@ tbody tr:hover .fa-edit {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
+
+/* === Searchable Select Styles === */
+.searchable-select-container {
+    position: relative;
+}
+
+.searchable-select-search {
+    border: 1px solid #d1d5db;
+    font-size: 14px;
+}
+
+.searchable-select-search:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.enhanced-searchable-select {
+    position: relative;
+}
+
+.enhanced-select-dropdown {
+    border: 1px solid #e5e7eb;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.enhanced-select-dropdown::-webkit-scrollbar {
+    width: 6px;
+}
+
+.enhanced-select-dropdown::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+/* === Location Info Card in Asset Details === */
+.location-info-card {
+    background: linear-gradient(135deg, #dcfce7 0%, #d1fae5 100%);
+    border: 1px solid #86efac;
+    border-radius: 12px;
+    padding: 16px;
+}
+
+.location-info-card .location-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px dashed #86efac;
+}
+
+.location-info-card .location-item:last-child {
+    border-bottom: none;
+}
+
+.location-info-card .location-item i {
+    color: #059669;
+    width: 20px;
+    text-align: center;
+}
+
+/* === Building/Floor/Room Grid === */
+.location-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+}
+
+.location-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 10px;
+    font-size: 13px;
+    color: #166534;
+}
+
+.location-badge i {
+    color: #059669;
+}
+
+/* === Import Excel Button Animation === */
+.import-excel-btn {
+    transition: all 0.3s ease;
+}
+
+.import-excel-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* === Categories & Settings Lists Enhanced === */
+#categories2List .bg-indigo-50,
+#categories3List .bg-pink-50,
+#assetNamesList .bg-blue-50,
+#suppliersList .bg-orange-50 {
+    transition: all 0.2s ease;
+}
+
+#categories2List .bg-indigo-50:hover {
+    background: #e0e7ff;
+    transform: translateX(-2px);
+}
+
+#categories3List .bg-pink-50:hover {
+    background: #fce7f3;
+    transform: translateX(-2px);
+}
+
+#assetNamesList .bg-blue-50:hover {
+    background: #dbeafe;
+    transform: translateX(-2px);
+}
+
+#suppliersList .bg-orange-50:hover {
+    background: #ffedd5;
+    transform: translateX(-2px);
+}
+
+/* === Asset Form Location Section Enhanced === */
+.asset-form-location-section {
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border: 1px solid #bbf7d0;
+    border-radius: 16px;
+    padding: 20px;
+    margin: 16px 0;
+}
+
+/* === Search in Dropdown Highlight === */
+.dropdown-option-highlight {
+    background: #fef3c7;
+    font-weight: 600;
+}
+
+/* === Enhanced Mobile Location Display === */
+@media (max-width: 768px) {
+    .location-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .location-badge {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* === Print Styles for Location Info === */
+@media print {
+    .location-info-card {
+        background: white !important;
+        border: 1px solid #000;
+    }
+    
+    .location-badge {
+        background: white !important;
+        border: 1px solid #000;
+    }
+}

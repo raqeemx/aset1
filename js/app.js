@@ -65,6 +65,8 @@ const APP_STATE = {
         'شركة المستلزمات الطبية', 'وكيل تويوتا المعتمد', 'شركة الكهرباء والإنارة'
     ],
     locations: ['الطابق الأول - مكتب 101', 'الطابق الثاني - غرفة 201', 'الطابق الثالث - قاعة الاجتماعات', 'المستودع', 'موقف السيارات', 'المبنى الرئيسي', 'المبنى الفرعي', 'القبو', 'السطح'],
+    buildings: ['المبنى الرئيسي', 'المبنى الفرعي', 'مبنى الخدمات', 'المستودع', 'موقف السيارات'],
+    floors: ['القبو', 'الأرضي', 'الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السطح'],
     assignees: [],
     conditions: ['ممتاز', 'جيد', 'مقبول', 'يحتاج صيانة', 'تالف'],
     currentPage: 1,
@@ -312,6 +314,16 @@ async function loadSettings() {
             APP_STATE.categories3 = categories3.value;
         }
         
+        const buildings = await dbGet(STORES.settings, 'buildings');
+        if (buildings && buildings.value) {
+            APP_STATE.buildings = buildings.value;
+        }
+        
+        const floors = await dbGet(STORES.settings, 'floors');
+        if (floors && floors.value) {
+            APP_STATE.floors = floors.value;
+        }
+        
     } catch (error) {
         console.error('Error loading settings:', error);
     }
@@ -328,6 +340,8 @@ async function saveSettings() {
         await dbPut(STORES.settings, { key: 'assignees', value: APP_STATE.assignees });
         await dbPut(STORES.settings, { key: 'assetNames', value: APP_STATE.assetNames });
         await dbPut(STORES.settings, { key: 'suppliers', value: APP_STATE.suppliers });
+        await dbPut(STORES.settings, { key: 'buildings', value: APP_STATE.buildings });
+        await dbPut(STORES.settings, { key: 'floors', value: APP_STATE.floors });
     } catch (error) {
         console.error('Error saving settings:', error);
     }
@@ -434,6 +448,12 @@ function initializeEventListeners() {
     
     // Before unload warning
     window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    // Initialize searchable selects
+    initializeSearchableSelects();
+    
+    // Initialize buildings dropdown
+    initializeBuildingsDropdown();
 }
 
 function handleKeyboardShortcuts(e) {
@@ -1258,6 +1278,32 @@ function populateFilters() {
         });
     }
     
+    // Building dropdown
+    const assetBuilding = document.getElementById('assetBuilding');
+    if (assetBuilding && APP_STATE.buildings) {
+        assetBuilding.innerHTML = '<option value="">-- اختر المبنى --</option>';
+        APP_STATE.buildings.forEach(building => {
+            assetBuilding.innerHTML += `<option value="${building}">${building}</option>`;
+        });
+    }
+    
+    // Floor dropdown (if custom floors exist)
+    const assetFloor = document.getElementById('assetFloor');
+    if (assetFloor && APP_STATE.floors) {
+        const defaultFloors = ['القبو', 'الأرضي', 'الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السطح'];
+        assetFloor.innerHTML = '<option value="">-- اختر الدور --</option>';
+        // Add default floors
+        defaultFloors.forEach(floor => {
+            assetFloor.innerHTML += `<option value="${floor}">${floor}</option>`;
+        });
+        // Add custom floors from settings
+        APP_STATE.floors.forEach(floor => {
+            if (!defaultFloors.includes(floor)) {
+                assetFloor.innerHTML += `<option value="${floor}">${floor}</option>`;
+            }
+        });
+    }
+    
     // Maintenance asset dropdown
     updateMaintenanceAssetDropdown();
 }
@@ -1283,7 +1329,13 @@ function renderAssetsTable() {
             asset.name.toLowerCase().includes(searchTerm) ||
             asset.code.toLowerCase().includes(searchTerm) ||
             (asset.department && asset.department.toLowerCase().includes(searchTerm)) ||
-            (asset.inventoryPerson && asset.inventoryPerson.toLowerCase().includes(searchTerm));
+            (asset.inventoryPerson && asset.inventoryPerson.toLowerCase().includes(searchTerm)) ||
+            (asset.building && asset.building.toLowerCase().includes(searchTerm)) ||
+            (asset.floor && asset.floor.toLowerCase().includes(searchTerm)) ||
+            (asset.room && asset.room.toLowerCase().includes(searchTerm)) ||
+            (asset.location && asset.location.toLowerCase().includes(searchTerm)) ||
+            (asset.supplier && asset.supplier.toLowerCase().includes(searchTerm)) ||
+            (asset.serialNumber && asset.serialNumber.toLowerCase().includes(searchTerm));
         const matchCategory = !categoryFilter || asset.category === categoryFilter;
         const matchCondition = !conditionFilter || asset.condition === conditionFilter;
         const matchDepartment = !departmentFilter || asset.department === departmentFilter;
@@ -1313,7 +1365,7 @@ function renderAssetsTable() {
             <td class="py-4 px-4 text-sm font-semibold text-gray-800">${asset.name}</td>
             <td class="py-4 px-4 text-sm text-gray-600">${asset.category}</td>
             <td class="py-4 px-4 text-sm text-gray-600">${asset.department || '-'}</td>
-            <td class="py-4 px-4 text-sm text-gray-600">${asset.location || '-'}</td>
+            <td class="py-4 px-4 text-sm text-gray-600" title="${getFullLocationString(asset)}">${getShortLocationString(asset)}</td>
             <td class="py-4 px-4">
                 <div class="flex items-center gap-2 cursor-pointer group" onclick="openQuickEditValueModal('${asset.id}')" title="انقر للتعديل السريع">
                     <span class="text-sm font-semibold text-green-600">${formatCurrency(asset.currentValue)}</span>
@@ -1413,6 +1465,15 @@ function openAssetModal(assetId = null) {
             document.getElementById('assetSerial').value = asset.serialNumber || '';
             document.getElementById('assetDepartment').value = asset.department || '';
             document.getElementById('assetLocation').value = asset.location || '';
+            
+            // Set new location fields
+            if (document.getElementById('assetBuilding')) document.getElementById('assetBuilding').value = asset.building || '';
+            if (document.getElementById('assetBuildingCustom')) document.getElementById('assetBuildingCustom').value = '';
+            if (document.getElementById('assetFloor')) document.getElementById('assetFloor').value = asset.floor || '';
+            if (document.getElementById('assetFloorCustom')) document.getElementById('assetFloorCustom').value = '';
+            if (document.getElementById('assetRoom')) document.getElementById('assetRoom').value = asset.room || '';
+            if (document.getElementById('assetLocationDesc')) document.getElementById('assetLocationDesc').value = asset.locationDesc || '';
+            
             document.getElementById('assetPurchasePrice').value = asset.purchasePrice || '';
             document.getElementById('assetCurrentValue').value = asset.currentValue || '';
             document.getElementById('assetPurchaseDate').value = asset.purchaseDate || '';
@@ -1467,6 +1528,32 @@ async function handleAssetSubmit(e) {
         saveSettings();
     }
     
+    // Get building value (from select or custom input)
+    const buildingSelect = document.getElementById('assetBuilding');
+    const buildingCustom = document.getElementById('assetBuildingCustom');
+    const building = buildingCustom && buildingCustom.value.trim() ? buildingCustom.value.trim() : (buildingSelect ? buildingSelect.value : '');
+    
+    // Get floor value (from select or custom input)
+    const floorSelect = document.getElementById('assetFloor');
+    const floorCustom = document.getElementById('assetFloorCustom');
+    const floor = floorCustom && floorCustom.value.trim() ? floorCustom.value.trim() : (floorSelect ? floorSelect.value : '');
+    
+    // Get room value
+    const room = document.getElementById('assetRoom') ? document.getElementById('assetRoom').value : '';
+    
+    // Get location description
+    const locationDesc = document.getElementById('assetLocationDesc') ? document.getElementById('assetLocationDesc').value : '';
+    
+    // Save new building if not exists
+    if (building && !APP_STATE.buildings) {
+        APP_STATE.buildings = [];
+    }
+    if (building && APP_STATE.buildings && !APP_STATE.buildings.includes(building)) {
+        APP_STATE.buildings.push(building);
+        saveSettings();
+        initializeBuildingsDropdown();
+    }
+    
     const assetData = {
         id: finalId,
         name: assetName,
@@ -1476,7 +1563,11 @@ async function handleAssetSubmit(e) {
         category3: document.getElementById('assetCategory3') ? document.getElementById('assetCategory3').value : '',
         serialNumber: document.getElementById('assetSerial').value,
         department: document.getElementById('assetDepartment').value,
+        building: building,
+        floor: floor,
+        room: room,
         location: document.getElementById('assetLocation').value,
+        locationDesc: locationDesc,
         purchasePrice: parseFloat(document.getElementById('assetPurchasePrice').value) || 0,
         currentValue: parseFloat(document.getElementById('assetCurrentValue').value) || 0,
         purchaseDate: document.getElementById('assetPurchaseDate').value,
@@ -1582,9 +1673,29 @@ function viewAssetDetails(assetId) {
                 <p class="text-sm text-gray-600 mb-1">القسم</p>
                 <p class="text-lg font-semibold text-gray-800">${asset.department || '-'}</p>
             </div>
-            <div class="bg-gray-50 p-4 rounded-xl md:col-span-2">
-                <p class="text-sm text-gray-600 mb-1">الموقع</p>
-                <p class="text-lg font-semibold text-gray-800">${asset.location || '-'}</p>
+            
+            <!-- معلومات الموقع التفصيلية -->
+            <div class="location-info-card md:col-span-2">
+                <p class="text-sm text-green-700 mb-3 font-semibold"><i class="fas fa-map-marker-alt ml-2"></i>معلومات الموقع</p>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="location-badge">
+                        <i class="fas fa-building"></i>
+                        <span>${asset.building || 'غير محدد'}</span>
+                    </div>
+                    <div class="location-badge">
+                        <i class="fas fa-layer-group"></i>
+                        <span>${asset.floor ? 'الدور ' + asset.floor : 'غير محدد'}</span>
+                    </div>
+                    <div class="location-badge">
+                        <i class="fas fa-door-open"></i>
+                        <span>${asset.room || 'غير محدد'}</span>
+                    </div>
+                    <div class="location-badge">
+                        <i class="fas fa-map-pin"></i>
+                        <span>${asset.location || 'غير محدد'}</span>
+                    </div>
+                </div>
+                ${asset.locationDesc ? `<p class="text-sm text-gray-600 mt-3"><i class="fas fa-info-circle ml-1"></i>${asset.locationDesc}</p>` : ''}
             </div>
             <div class="bg-gray-50 p-4 rounded-xl">
                 <p class="text-sm text-gray-600 mb-1">تاريخ الشراء</p>
@@ -2657,9 +2768,15 @@ function exportToExcel() {
     const data = APP_STATE.assets.map(asset => ({
         'الكود': asset.code,
         'الاسم': asset.name,
-        'الفئة': asset.category,
+        'الفئة الرئيسية': asset.category,
+        'الفئة الفرعية': asset.category2 || '',
+        'الفئة التفصيلية': asset.category3 || '',
         'القسم': asset.department,
-        'الموقع': asset.location,
+        'المبنى': asset.building || '',
+        'الدور': asset.floor || '',
+        'الغرفة': asset.room || '',
+        'الموقع التفصيلي': asset.location || '',
+        'وصف الموقع': asset.locationDesc || '',
         'تاريخ الشراء': asset.purchaseDate,
         'سعر الشراء': asset.purchasePrice,
         'القيمة الحالية': asset.currentValue,
@@ -2670,6 +2787,7 @@ function exportToExcel() {
         'المسؤول': asset.assignee,
         'القائم بالجرد': asset.inventoryPerson,
         'تاريخ آخر جرد': asset.lastInventoryDate,
+        'البيانات الفنية': asset.technicalData || '',
         'ملاحظات': asset.notes
     }));
     
@@ -3169,6 +3287,362 @@ function readExcelFile(file) {
         reader.onerror = reject;
         reader.readAsArrayBuffer(file);
     });
+}
+
+// === Excel Import Functions for Categories 2, 3, Suppliers, Asset Names ===
+async function importCategories2FromExcel(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    showLoading();
+    
+    try {
+        const data = await readExcelFile(file);
+        if (data && data.length > 0) {
+            const newCategories = data.map(row => {
+                return row['الفئة'] || row['الفئة الفرعية'] || row['فئة'] || row['Category'] || row['category2'] || Object.values(row)[0];
+            }).filter(cat => cat && typeof cat === 'string' && cat.trim());
+            
+            const uniqueNew = [...new Set(newCategories)].filter(cat => !APP_STATE.categories2.includes(cat.trim()));
+            
+            if (uniqueNew.length > 0) {
+                APP_STATE.categories2.push(...uniqueNew.map(c => c.trim()));
+                saveSettings();
+                renderCategories2List();
+                populateFilters();
+                showToast(`تم استيراد ${uniqueNew.length} فئة فرعية جديدة`, 'success');
+            } else {
+                showToast('لا توجد فئات فرعية جديدة للاستيراد', 'info');
+            }
+        }
+    } catch (error) {
+        console.error('Error importing categories2:', error);
+        showToast('حدث خطأ أثناء استيراد الفئات الفرعية', 'error');
+    }
+    
+    event.target.value = '';
+    hideLoading();
+}
+
+async function importCategories3FromExcel(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    showLoading();
+    
+    try {
+        const data = await readExcelFile(file);
+        if (data && data.length > 0) {
+            const newCategories = data.map(row => {
+                return row['الفئة'] || row['الفئة التفصيلية'] || row['فئة'] || row['Category'] || row['category3'] || Object.values(row)[0];
+            }).filter(cat => cat && typeof cat === 'string' && cat.trim());
+            
+            const uniqueNew = [...new Set(newCategories)].filter(cat => !APP_STATE.categories3.includes(cat.trim()));
+            
+            if (uniqueNew.length > 0) {
+                APP_STATE.categories3.push(...uniqueNew.map(c => c.trim()));
+                saveSettings();
+                renderCategories3List();
+                populateFilters();
+                showToast(`تم استيراد ${uniqueNew.length} فئة تفصيلية جديدة`, 'success');
+            } else {
+                showToast('لا توجد فئات تفصيلية جديدة للاستيراد', 'info');
+            }
+        }
+    } catch (error) {
+        console.error('Error importing categories3:', error);
+        showToast('حدث خطأ أثناء استيراد الفئات التفصيلية', 'error');
+    }
+    
+    event.target.value = '';
+    hideLoading();
+}
+
+async function importAssetNamesFromExcel(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    showLoading();
+    
+    try {
+        const data = await readExcelFile(file);
+        if (data && data.length > 0) {
+            const newNames = data.map(row => {
+                return row['الاسم'] || row['اسم الأصل'] || row['أصل'] || row['Name'] || row['AssetName'] || Object.values(row)[0];
+            }).filter(name => name && typeof name === 'string' && name.trim());
+            
+            const uniqueNew = [...new Set(newNames)].filter(name => !APP_STATE.assetNames.includes(name.trim()));
+            
+            if (uniqueNew.length > 0) {
+                APP_STATE.assetNames.push(...uniqueNew.map(n => n.trim()));
+                saveSettings();
+                renderAssetNamesList();
+                populateFilters();
+                showToast(`تم استيراد ${uniqueNew.length} اسم أصل جديد`, 'success');
+            } else {
+                showToast('لا توجد أسماء أصول جديدة للاستيراد', 'info');
+            }
+        }
+    } catch (error) {
+        console.error('Error importing asset names:', error);
+        showToast('حدث خطأ أثناء استيراد أسماء الأصول', 'error');
+    }
+    
+    event.target.value = '';
+    hideLoading();
+}
+
+async function importSuppliersFromExcel(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    showLoading();
+    
+    try {
+        const data = await readExcelFile(file);
+        if (data && data.length > 0) {
+            const newSuppliers = data.map(row => {
+                return row['المورد'] || row['اسم المورد'] || row['مورد'] || row['Supplier'] || row['supplier'] || Object.values(row)[0];
+            }).filter(sup => sup && typeof sup === 'string' && sup.trim());
+            
+            const uniqueNew = [...new Set(newSuppliers)].filter(sup => !APP_STATE.suppliers.includes(sup.trim()));
+            
+            if (uniqueNew.length > 0) {
+                APP_STATE.suppliers.push(...uniqueNew.map(s => s.trim()));
+                saveSettings();
+                renderSuppliersList();
+                populateFilters();
+                showToast(`تم استيراد ${uniqueNew.length} مورد جديد`, 'success');
+            } else {
+                showToast('لا يوجد موردين جدد للاستيراد', 'info');
+            }
+        }
+    } catch (error) {
+        console.error('Error importing suppliers:', error);
+        showToast('حدث خطأ أثناء استيراد الموردين', 'error');
+    }
+    
+    event.target.value = '';
+    hideLoading();
+}
+
+// === Searchable Select Functions ===
+function initializeSearchableSelects() {
+    // Add search functionality to all searchable selects
+    document.querySelectorAll('.searchable-select').forEach(select => {
+        makeSelectSearchable(select);
+    });
+}
+
+function makeSelectSearchable(selectElement) {
+    if (selectElement.dataset.searchableInitialized) return;
+    
+    const container = selectElement.closest('.searchable-select-container') || selectElement.parentElement;
+    
+    // Create search input
+    const searchWrapper = document.createElement('div');
+    searchWrapper.className = 'searchable-select-wrapper relative';
+    
+    const searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.className = 'searchable-select-search w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light mb-1';
+    searchInput.placeholder = 'اكتب للبحث...';
+    searchInput.style.display = 'none';
+    
+    // Insert search input before select
+    selectElement.parentNode.insertBefore(searchInput, selectElement);
+    
+    // Store original options
+    const originalOptions = Array.from(selectElement.options).map(opt => ({
+        value: opt.value,
+        text: opt.textContent,
+        selected: opt.selected
+    }));
+    
+    // Show search on focus
+    selectElement.addEventListener('focus', function() {
+        searchInput.style.display = 'block';
+        searchInput.focus();
+    });
+    
+    // Filter options on search
+    searchInput.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase().trim();
+        
+        // Clear current options
+        selectElement.innerHTML = '';
+        
+        // Filter and add matching options
+        const filteredOptions = originalOptions.filter(opt => 
+            opt.text.toLowerCase().includes(searchTerm) || opt.value === ''
+        );
+        
+        filteredOptions.forEach(opt => {
+            const option = document.createElement('option');
+            option.value = opt.value;
+            option.textContent = opt.text;
+            if (opt.selected) option.selected = true;
+            selectElement.appendChild(option);
+        });
+        
+        // Show count
+        if (searchTerm && filteredOptions.length <= 1) {
+            showToast(`لا توجد نتائج لـ "${searchTerm}"`, 'info');
+        }
+    });
+    
+    // Hide search on blur (with delay to allow selection)
+    searchInput.addEventListener('blur', function() {
+        setTimeout(() => {
+            searchInput.style.display = 'none';
+            searchInput.value = '';
+            // Restore all options
+            selectElement.innerHTML = '';
+            originalOptions.forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt.value;
+                option.textContent = opt.text;
+                selectElement.appendChild(option);
+            });
+        }, 200);
+    });
+    
+    selectElement.dataset.searchableInitialized = 'true';
+}
+
+// Enhanced searchable select with dropdown
+function createEnhancedSearchableSelect(selectId, options, placeholder = 'اختر أو ابحث...') {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    
+    const container = select.parentElement;
+    
+    // Create wrapper
+    const wrapper = document.createElement('div');
+    wrapper.className = 'enhanced-searchable-select relative';
+    
+    // Create input for search
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-gov-blue-light';
+    input.placeholder = placeholder;
+    input.id = selectId + '_search';
+    
+    // Create dropdown
+    const dropdown = document.createElement('div');
+    dropdown.className = 'enhanced-select-dropdown absolute top-full left-0 right-0 bg-white border rounded-xl shadow-lg max-h-48 overflow-y-auto z-50 hidden';
+    
+    // Hide original select
+    select.style.display = 'none';
+    
+    // Insert new elements
+    container.insertBefore(wrapper, select);
+    wrapper.appendChild(input);
+    wrapper.appendChild(dropdown);
+    wrapper.appendChild(select);
+    
+    // Populate dropdown
+    function populateDropdown(filter = '') {
+        dropdown.innerHTML = '';
+        const filterLower = filter.toLowerCase();
+        
+        options.forEach(opt => {
+            if (filterLower && !opt.toLowerCase().includes(filterLower)) return;
+            
+            const item = document.createElement('div');
+            item.className = 'px-4 py-2 hover:bg-gov-blue hover:text-white cursor-pointer transition-colors';
+            item.textContent = opt;
+            item.addEventListener('click', () => {
+                input.value = opt;
+                select.value = opt;
+                dropdown.classList.add('hidden');
+                select.dispatchEvent(new Event('change'));
+            });
+            dropdown.appendChild(item);
+        });
+    }
+    
+    // Events
+    input.addEventListener('focus', () => {
+        populateDropdown(input.value);
+        dropdown.classList.remove('hidden');
+    });
+    
+    input.addEventListener('input', () => {
+        populateDropdown(input.value);
+        dropdown.classList.remove('hidden');
+    });
+    
+    input.addEventListener('blur', () => {
+        setTimeout(() => dropdown.classList.add('hidden'), 200);
+    });
+    
+    // Set initial value
+    if (select.value) {
+        input.value = select.value;
+    }
+}
+
+// === Buildings Dropdown Initialization ===
+function initializeBuildingsDropdown() {
+    const buildingSelect = document.getElementById('assetBuilding');
+    if (!buildingSelect) return;
+    
+    // Clear existing options except first
+    buildingSelect.innerHTML = '<option value="">-- اختر المبنى --</option>';
+    
+    // Add buildings from APP_STATE
+    if (APP_STATE.buildings && APP_STATE.buildings.length > 0) {
+        APP_STATE.buildings.forEach(building => {
+            const option = document.createElement('option');
+            option.value = building;
+            option.textContent = building;
+            buildingSelect.appendChild(option);
+        });
+    }
+}
+
+// === Load Buildings from Settings ===
+async function loadBuildingsSettings() {
+    try {
+        const buildings = await dbGet(STORES.settings, 'buildings');
+        if (buildings && buildings.value) {
+            APP_STATE.buildings = buildings.value;
+        }
+    } catch (error) {
+        console.error('Error loading buildings settings:', error);
+    }
+}
+
+// === Get Full Location String ===
+function getFullLocationString(asset) {
+    const parts = [];
+    if (asset.building) parts.push(asset.building);
+    if (asset.floor) parts.push(`الدور ${asset.floor}`);
+    if (asset.room) parts.push(asset.room);
+    if (asset.location && !parts.includes(asset.location)) parts.push(asset.location);
+    if (asset.locationDesc) parts.push(`(${asset.locationDesc})`);
+    
+    return parts.length > 0 ? parts.join(' - ') : 'غير محدد';
+}
+
+// === Get Short Location String (for table display) ===
+function getShortLocationString(asset) {
+    // Priority: room > location > building+floor
+    if (asset.room) {
+        return asset.room;
+    }
+    if (asset.location) {
+        return asset.location.length > 25 ? asset.location.substring(0, 22) + '...' : asset.location;
+    }
+    if (asset.building || asset.floor) {
+        const short = [];
+        if (asset.building) short.push(asset.building);
+        if (asset.floor) short.push(asset.floor);
+        const result = short.join(' - ');
+        return result.length > 25 ? result.substring(0, 22) + '...' : result;
+    }
+    return '-';
 }
 
 // === Barcode Scanner for Fields ===
